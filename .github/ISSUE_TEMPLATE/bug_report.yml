@@ -1,72 +1,77 @@
-name: Bug report
-description: Create a report to help us improve KernelSU
-labels: [Bug]
-
+name: Bug report / 问题反馈
+description: 反馈 HP Print 使用中遇到的问题，帮助我改进
+title: "[Bug] "
+labels: [bug]
 body:
   - type: checkboxes
     attributes:
-       label: Please check before submitting an issue
-       options:
-          - label: I have searched the issues and haven't found anything relevant
-            required: true
-            
-          - label: I will upload bugreport file in KernelSU Manager - Settings - Report log
-            required: true
-            
-          - label: I know how to reproduce the issue which may not be specific to my device
-            required: false
-
+      label: 提交前请确认
+      options:
+        - label: 我已经搜索过现有 Issues，没有找到相同问题
+          required: true
+        - label: 我会尽量提供完整的版本、设备和问题描述信息
+          required: true
 
   - type: textarea
+    id: describe
     attributes:
-        label: Describe the bug
-        description: A clear and concise description of what the bug is
+      label: 问题描述
+      description: 请清楚描述遇到了什么问题
+      placeholder: 例如：点击“打印”后应用闪退 / 搜索不到打印机 / 扫描出来的图片是花的……
     validations:
-        required: true
-      
+      required: true
 
   - type: textarea
+    id: reproduce
     attributes:
-        label: To Reproduce
-        description: Steps to reproduce the behaviour
-        placeholder: |
-          - 1. Go to '...'
-          - 2. Click on '....'
-          - 3. Scroll down to '....'
-          - 4. See error
-          
-
-  - type: textarea
-    attributes:
-        label: Expected behavior
-        description: A clear and concise description of what you expected to happen.
-    
-    
-  - type: textarea
-    attributes:
-        label: Screenshots
-        description: If applicable, add screenshots to help explain your problem.
-        
-        
-  - type: textarea
-    attributes:
-        label: Logs
-        description: If applicable, add crash or any other logs to help us figure out the problem.
-        
-        
-  - type: textarea
-    attributes:
-        label: Device info
-        value: |
-          - Device:
-          - OS Version:
-          - KernelSU Version:
-          - Kernel Version:
+      label: 复现步骤
+      description: 按照怎样的操作会出现这个问题（能稳定复现最好）
+      placeholder: |
+        1. 打开……
+        2. 点击……
+        3. 出现……
     validations:
-        required: true
-
+      required: true
 
   - type: textarea
+    id: expected
     attributes:
-        label: Additional context
-        description: Add any other context about the problem here.
+      label: 期望的正常表现
+      description: 你觉得正常情况下应该是什么样
+
+  - type: dropdown
+    id: app_version
+    attributes:
+      label: App 版本
+      description: 在「设置 - 关于」里查看，或看安装包文件名
+      options:
+        - v1.0.0 (30000)
+        - 其他版本（请在下方“其他补充”中写明）
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: 手机机型 / 安卓版本
+      placeholder: 例如：小米14 / Android 14
+    validations:
+      required: true
+
+  - type: input
+    id: printer
+    attributes:
+      label: 打印机型号
+      placeholder: 例如：HP LaserJet M1136
+
+  - type: textarea
+    id: media
+    attributes:
+      label: 截图 / 录屏 / 崩溃日志
+      description: 能附上最好，能帮助快速定位问题
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: 其他补充
+      description: 例如：问题是第一次使用就有，还是更新后才出现；还有其他需要说明的内容
