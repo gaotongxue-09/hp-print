@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="print">Print</string>
+    <string name="scan">Scan</string>
+
+    <string name="hp_status_online">Online</string>
+    <string name="hp_status_offline">Offline</string>
+    <string name="hp_status_idle">Idle</string>
+    <string name="hp_status_busy">Busy</string>
+    <string name="hp_status_error">Error</string>
+
+    <string name="hp_status_queued">Queued</string>
+    <string name="hp_status_printing">Printing</string>
+    <string name="hp_status_completed">Completed</string>
+    <string name="hp_status_failed">Failed</string>
+    <string name="hp_status_cancelled">Cancelled</string>
+
+    <string name="hp_default_printer">Default printer</string>
+    <string name="hp_no_printer">No printer added</string>
+    <string name="hp_quick_actions">Quick actions</string>
+    <string name="hp_print_documents">Print documents</string>
+    <string name="hp_print_photos">Print photos</string>
+    <string name="hp_web_print">Web print</string>
+    <string name="hp_start_scan">Scan</string>
+    <string name="hp_recent_jobs">Recent activity</string>
+    <string name="hp_supplies">Supplies</string>
+    <string name="hp_low_ink">Low</string>
+
+    <string name="hp_ink_black">Black</string>
+    <string name="hp_ink_cyan">Cyan</string>
+    <string name="hp_ink_magenta">Magenta</string>
+    <string name="hp_ink_yellow">Yellow</string>
+    <string name="hp_ink_photo_black">Photo black</string>
+    <string name="hp_ink_level">Ink levels</string>
+
+    <string name="hp_print_jobs">Print jobs</string>
+    <string name="hp_print_history">History</string>
+    <string name="hp_no_jobs">No print jobs yet</string>
+    <string name="hp_new_print">New print</string>
+
+    <string name="hp_print_setup">Print setup</string>
+    <string name="hp_copies">Copies</string>
+    <string name="hp_color_mode">Color mode</string>
+    <string name="hp_color">Color</string>
+    <string name="hp_grayscale">Black &amp; white</string>
+    <string name="hp_paper_size">Paper size</string>
+    <string name="hp_duplex">Double-sided</string>
+    <string name="hp_duplex_off">Off</string>
+    <string name="hp_duplex_long">Long edge</string>
+    <string name="hp_duplex_short">Short edge</string>
+    <string name="hp_duplex_manual">Manual duplex</string>
+    <string name="hp_quality">Print quality</string>
+    <string name="hp_quality_draft">Draft</string>
+    <string name="hp_quality_normal">Normal</string>
+    <string name="hp_quality_high">High</string>
+    <string name="hp_orientation">Orientation</string>
+    <string name="hp_orientation_portrait">Portrait</string>
+    <string name="hp_orientation_landscape">Landscape</string>
+    <string name="hp_page_range">Page range</string>
+    <string name="hp_page_range_all">All pages</string>
+    <string name="hp_page_range_custom">Custom range</string>
+    <string name="hp_page_start">Start page</string>
+    <string name="hp_page_end">End page</string>
+    <string name="hp_manual_duplex_prompt">Front side printed. Flip the paper and reload it into the tray, then continue to print the other side.</string>
+    <string name="hp_manual_duplex_continue">Continue</string>
+    <string name="hp_manual_duplex_cancel">Cancel</string>
+    <string name="hp_manual_duplex_guide_title">Manual duplex guide</string>
+    <string name="hp_manual_duplex_guide_message">You selected manual duplex:\n1. The front side (odd pages) prints first;\n2. When prompted, flip the paper and reload it into the tray;\n3. Tap "Continue" to print the back side (even pages).\n\nTip: stay nearby during printing so you do not miss the flip prompt.</string>
+    <string name="hp_manual_duplex_guide_start">Start printing</string>
+    <string name="hp_manual_duplex_notify_title">Please flip the paper</string>
+    <string name="hp_manual_duplex_notify_text">%1$s front side is done. Flip the paper and reload it into the tray, then tap Continue to print the back side.</string>
+    <string name="hp_about_section">About</string>
+    <string name="hp_about_description">A native Android app for HP printers: print, scan, and manage printer ink levels with a clean, fluid experience.</string>
+    <string name="hp_developer_section">Developer</string>
+    <string name="hp_developer_name">Gao Tongxue</string>
+    <string name="hp_references_section">References</string>
+    <string name="hp_ref_hyperlight_desc">Liquid-glass UI and animation reference.</string>
+    <string name="hp_ref_miuix_desc">Miuix UI component library.</string>
+    <string name="hp_ref_kernelsu_desc">Project architecture and status-card reference.</string>
+    <string name="hp_links_section">Links</string>
+    <string name="hp_link_github">GitHub</string>
+    <string name="hp_link_github_summary">Source repository</string>
+    <string name="hp_link_coolapk">Coolapk</string>
+    <string name="hp_link_coolapk_summary">Author page</string>
+    <string name="hp_pages">Pages</string>
+    <string name="hp_print_button">Print</string>
+    <string name="hp_printing_started">Sent to printer</string>
+    <string name="hp_select_printer">Printer</string>
+    <string name="hp_print_to">Print to</string>
+    <string name="hp_preview">Preview</string>
+    <string name="hp_preview_hint">View pages before printing</string>
+    <string name="hp_preview_unavailable">Preview unavailable</string>
+
+    <string name="hp_web_print_title">Web print</string>
+    <string name="hp_url_hint">Enter a URL</string>
+    <string name="hp_web_print_go">Print page</string>
+    <string name="hp_invalid_url">Invalid URL</string>
+
+    <string name="hp_scan_title">Scan</string>
+    <string name="hp_scan_now">Scan now</string>
+    <string name="hp_scan_from_gallery">From gallery</string>
+    <string name="hp_scan_camera">Use camera</string>
+    <string name="hp_scan_history">Scan history</string>
+    <string name="hp_no_scans">No scans yet</string>
+    <string name="hp_scan_preview">Scan preview</string>
+    <string name="hp_save">Save</string>
+    <string name="hp_delete">Delete</string>
+    <string name="hp_scan_saved">Scan saved</string>
+    <string name="hp_scan_from_printer">Scan from printer</string>
+    <string name="hp_scan_from_printer_hint">Use the printer\'s scanner</string>
+    <string name="hp_scanning">Scanning…</string>
+    <string name="hp_scan_failed">Scan failed</string>
+
+    <string name="hp_printers">Printers</string>
+    <string name="hp_discover">Discover printers</string>
+    <string name="hp_searching">Searching…</string>
+    <string name="hp_manual_add">Add manually</string>
+    <string name="hp_ip_address">IP address</string>
+    <string name="hp_port">Port</string>
+    <string name="hp_set_default">Set as default</string>
+    <string name="hp_default">Default</string>
+    <string name="hp_remove_printer">Remove printer</string>
+    <string name="hp_printer_detail">Printer details</string>
+    <string name="hp_printer_model">Model</string>
+    <string name="hp_offline_hint">This printer appears to be offline</string>
+    <string name="hp_add_printer">Add printer</string>
+    <string name="hp_test_probe">Check connection</string>
+    <string name="hp_remove">Remove</string>
+
+    <string name="hp_account">Account</string>
+    <string name="hp_sign_in">Sign in</string>
+    <string name="hp_sign_out">Sign out</string>
+    <string name="hp_subscription">Subscription</string>
+    <string name="hp_not_signed_in">Not signed in</string>
+
+    <string name="hp_printer_management">Printer management</string>
+
+    <string name="hp_about_summary">HP Print companion app</string>
+    <string name="hp_version">Version</string>
+
+    <string name="hp_documents_hint">PDF, Word, TXT, HTML</string>
+    <string name="hp_photos_hint">Print photos from your gallery</string>
+    <string name="hp_web_print_hint">Print any URL</string>
+    <string name="hp_scan_hint">Capture or pick a document</string>
+    <string name="hp_active_jobs">In progress</string>
+    <string name="hp_printer_name">Printer name</string>
+    <string name="hp_email">Email</string>
+    <string name="hp_display_name">Display name</string>
+    <string name="hp_no_discovered">No printers found</string>
+    <string name="hp_add">Add</string>
+    <string name="hp_cancel">Cancel</string>
+    <string name="hp_reachable">Reachable</string>
+    <string name="hp_unreachable">Unreachable</string>
+    <string name="hp_source_file">Source</string>
+    <string name="hp_connection">Connection</string>
+    <string name="hp_sign_in_hint">Sign in to sync your HP account</string>
+    <string name="hp_refresh">Refresh status</string>
+    <string name="hp_rename_printer">Rename printer</string>
+
+    <string name="hp_setup_welcome_title">HP Print</string>
+    <string name="hp_setup_welcome_subtitle">Print, scan and manage your printers</string>
+    <string name="hp_setup_get_started">Get started</string>
+    <string name="hp_setup_done">Done</string>
+    <string name="hp_setup_ui_style">Interface style</string>
+    <string name="hp_setup_theme">Theme</string>
+</resources>

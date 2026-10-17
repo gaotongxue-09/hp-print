@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="print">打印</string>
+    <string name="scan">扫描</string>
+
+    <string name="hp_status_online">在线</string>
+    <string name="hp_status_offline">离线</string>
+    <string name="hp_status_idle">空闲</string>
+    <string name="hp_status_busy">忙碌</string>
+    <string name="hp_status_error">错误</string>
+
+    <string name="hp_status_queued">排队中</string>
+    <string name="hp_status_printing">打印中</string>
+    <string name="hp_status_completed">已完成</string>
+    <string name="hp_status_failed">失败</string>
+    <string name="hp_status_cancelled">已取消</string>
+
+    <string name="hp_default_printer">默认打印机</string>
+    <string name="hp_no_printer">尚未添加打印机</string>
+    <string name="hp_quick_actions">快捷操作</string>
+    <string name="hp_print_documents">打印文档</string>
+    <string name="hp_print_photos">打印照片</string>
+    <string name="hp_web_print">网页打印</string>
+    <string name="hp_start_scan">扫描</string>
+    <string name="hp_recent_jobs">最近活动</string>
+    <string name="hp_supplies">耗材</string>
+    <string name="hp_low_ink">低</string>
+
+    <string name="hp_ink_black">黑色</string>
+    <string name="hp_ink_cyan">青色</string>
+    <string name="hp_ink_magenta">品红</string>
+    <string name="hp_ink_yellow">黄色</string>
+    <string name="hp_ink_photo_black">照片黑</string>
+    <string name="hp_ink_level">墨水量</string>
+
+    <string name="hp_print_jobs">打印任务</string>
+    <string name="hp_print_history">历史</string>
+    <string name="hp_no_jobs">暂无打印任务</string>
+    <string name="hp_new_print">新建打印</string>
+
+    <string name="hp_print_setup">打印设置</string>
+    <string name="hp_copies">份数</string>
+    <string name="hp_color_mode">色彩模式</string>
+    <string name="hp_color">彩色</string>
+    <string name="hp_grayscale">黑白</string>
+    <string name="hp_paper_size">纸张尺寸</string>
+    <string name="hp_duplex">双面打印</string>
+    <string name="hp_duplex_off">关闭</string>
+    <string name="hp_duplex_long">长边翻转</string>
+    <string name="hp_duplex_short">短边翻转</string>
+    <string name="hp_duplex_manual">手动双面</string>
+    <string name="hp_quality">打印质量</string>
+    <string name="hp_quality_draft">草稿</string>
+    <string name="hp_quality_normal">标准</string>
+    <string name="hp_quality_high">高质量</string>
+    <string name="hp_orientation">方向</string>
+    <string name="hp_orientation_portrait">纵向</string>
+    <string name="hp_orientation_landscape">横向</string>
+    <string name="hp_page_range">打印范围</string>
+    <string name="hp_page_range_all">全部页面</string>
+    <string name="hp_page_range_custom">自定义范围</string>
+    <string name="hp_page_start">起始页</string>
+    <string name="hp_page_end">结束页</string>
+    <string name="hp_manual_duplex_prompt">正面（奇数页）已打印完成，请将纸张翻面后重新放入纸盒，然后点击继续打印背面。</string>
+    <string name="hp_manual_duplex_continue">继续</string>
+    <string name="hp_manual_duplex_cancel">取消</string>
+    <string name="hp_manual_duplex_guide_title">手动双面打印说明</string>
+    <string name="hp_manual_duplex_guide_message">已选择手动双面打印：\n1. 先打印正面（奇数页）；\n2. 打印完成后会提示翻面，请将纸张翻面并重新放入纸盒；\n3. 点击「继续」打印背面（偶数页）。\n\n提示：打印过程中请勿离开，以免错过翻面操作。</string>
+    <string name="hp_manual_duplex_guide_start">开始打印</string>
+    <string name="hp_manual_duplex_notify_title">请翻面</string>
+    <string name="hp_manual_duplex_notify_text">%1$s 正面已打印完成，请将纸张翻面后重新放入纸盒，再点击「继续」打印背面。</string>
+    <string name="hp_about_section">关于软件</string>
+    <string name="hp_about_description">原生 Android 版 HP 打印应用：支持打印、扫描与墨水量管理，界面清爽流畅。</string>
+    <string name="hp_developer_section">开发者</string>
+    <string name="hp_developer_name">高同学</string>
+    <string name="hp_references_section">引用</string>
+    <string name="hp_ref_hyperlight_desc">液态玻璃 UI 与动画参考项目。</string>
+    <string name="hp_ref_miuix_desc">Miuix UI 组件库。</string>
+    <string name="hp_ref_kernelsu_desc">项目架构与状态卡片参考项目。</string>
+    <string name="hp_links_section">链接</string>
+    <string name="hp_link_github">GitHub</string>
+    <string name="hp_link_github_summary">源码仓库</string>
+    <string name="hp_link_coolapk">酷安</string>
+    <string name="hp_link_coolapk_summary">作者主页</string>
+    <string name="hp_pages">页数</string>
+    <string name="hp_print_button">打印</string>
+    <string name="hp_printing_started">已发送到打印机</string>
+    <string name="hp_select_printer">打印机</string>
+    <string name="hp_print_to">打印到</string>
+    <string name="hp_preview">预览</string>
+    <string name="hp_preview_hint">打印前查看页面</string>
+    <string name="hp_preview_unavailable">无法预览</string>
+
+    <string name="hp_web_print_title">网页打印</string>
+    <string name="hp_url_hint">输入网址</string>
+    <string name="hp_web_print_go">打印网页</string>
+    <string name="hp_invalid_url">网址无效</string>
+
+    <string name="hp_scan_title">扫描</string>
+    <string name="hp_scan_now">立即扫描</string>
+    <string name="hp_scan_from_gallery">从相册选择</string>
+    <string name="hp_scan_camera">使用相机</string>
+    <string name="hp_scan_history">扫描历史</string>
+    <string name="hp_no_scans">暂无扫描件</string>
+    <string name="hp_scan_preview">扫描预览</string>
+    <string name="hp_save">保存</string>
+    <string name="hp_delete">删除</string>
+    <string name="hp_scan_saved">扫描已保存</string>
+    <string name="hp_scan_from_printer">从打印机扫描</string>
+    <string name="hp_scan_from_printer_hint">调用打印机的扫描仪</string>
+    <string name="hp_scanning">正在扫描…</string>
+    <string name="hp_scan_failed">扫描失败</string>
+
+    <string name="hp_printers">打印机</string>
+    <string name="hp_discover">发现打印机</string>
+    <string name="hp_searching">正在搜索…</string>
+    <string name="hp_manual_add">手动添加</string>
+    <string name="hp_ip_address">IP 地址</string>
+    <string name="hp_port">端口</string>
+    <string name="hp_set_default">设为默认</string>
+    <string name="hp_default">默认</string>
+    <string name="hp_remove_printer">移除打印机</string>
+    <string name="hp_printer_detail">打印机详情</string>
+    <string name="hp_printer_model">型号</string>
+    <string name="hp_offline_hint">该打印机似乎处于离线状态</string>
+    <string name="hp_add_printer">添加打印机</string>
+    <string name="hp_test_probe">检查连接</string>
+    <string name="hp_remove">移除</string>
+
+    <string name="hp_account">账号</string>
+    <string name="hp_sign_in">登录</string>
+    <string name="hp_sign_out">退出登录</string>
+    <string name="hp_subscription">订阅</string>
+    <string name="hp_not_signed_in">未登录</string>
+
+    <string name="hp_printer_management">打印机管理</string>
+
+    <string name="hp_about_summary">惠普打印伴侣应用</string>
+    <string name="hp_version">版本</string>
+
+    <string name="hp_documents_hint">PDF、Word、TXT、HTML</string>
+    <string name="hp_photos_hint">从相册打印照片</string>
+    <string name="hp_web_print_hint">打印任意网页</string>
+    <string name="hp_scan_hint">拍摄或选择文档</string>
+    <string name="hp_active_jobs">进行中</string>
+    <string name="hp_printer_name">打印机名称</string>
+    <string name="hp_email">邮箱</string>
+    <string name="hp_display_name">显示名称</string>
+    <string name="hp_no_discovered">未发现打印机</string>
+    <string name="hp_add">添加</string>
+    <string name="hp_cancel">取消</string>
+    <string name="hp_reachable">可达</string>
+    <string name="hp_unreachable">不可达</string>
+    <string name="hp_source_file">来源</string>
+    <string name="hp_connection">连接</string>
+    <string name="hp_sign_in_hint">登录以同步惠普账号</string>
+    <string name="hp_refresh">刷新状态</string>
+    <string name="hp_rename_printer">重命名打印机</string>
+
+    <string name="hp_setup_welcome_title">惠普打印</string>
+    <string name="hp_setup_welcome_subtitle">打印、扫描并管理你的打印机</string>
+    <string name="hp_setup_get_started">开始使用</string>
+    <string name="hp_setup_done">完成</string>
+    <string name="hp_setup_ui_style">界面风格</string>
+    <string name="hp_setup_theme">主题</string>
+</resources>
