@@ -154,7 +154,6 @@ import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.overlay.OverlayListPopup
 import top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
-import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import com.hpprint.app.ui.util.scrollEndVibration
 
 @SuppressLint("StringFormatInvalid", "LocalContextGetResourceValueCall")
@@ -532,7 +531,6 @@ fun ModulePagerMiuix(
                         ModuleList(
                             modifier = Modifier
                                 .fillMaxHeight()
-                                .scrollEndHaptic(HapticFeedbackType.LongPress)
                                 .scrollEndVibration()
                                 .overScrollVertical()
                                 .nestedScroll(scrollBehavior.nestedScrollConnection),

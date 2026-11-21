@@ -1,12 +1,12 @@
 package com.hpprint.app.ui.screen.scan
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import android.graphics.Bitmap
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import com.hpprint.app.data.ipp.PrinterScan
+import com.hpprint.app.data.ipp.ScanSettingsStore
 import com.hpprint.app.data.repository.PrinterRepositoryImpl
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -32,49 +32,47 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.CameraAlt
-import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.AccountBox
+import androidx.compose.material.icons.rounded.Badge
+import androidx.compose.material.icons.rounded.ContactPage
 import androidx.compose.material.icons.rounded.DocumentScanner
+import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.PhotoLibrary
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.hpprint.app.R
-import com.hpprint.app.data.model.hp.Scan
+import com.hpprint.app.data.scan.core.ScanOutputFormat
 import com.hpprint.app.ui.LocalUiMode
 import com.hpprint.app.ui.UiMode
 import com.hpprint.app.ui.component.material.ExpressiveScaffold
 import com.hpprint.app.ui.component.material.SegmentedColumn
 import com.hpprint.app.ui.component.material.SegmentedListItem
 import com.hpprint.app.ui.component.material.expressiveTopAppBarColors
-import com.hpprint.app.ui.hp.formatTimestamp
 import com.hpprint.app.ui.navigation3.Navigator
+import com.hpprint.app.ui.navigation3.PrintFile
 import com.hpprint.app.ui.navigation3.Route
-import com.hpprint.app.ui.viewmodel.ScanViewModel
-import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.utils.overScrollVertical
-import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import com.hpprint.app.ui.util.scrollEndVibration
+import com.hpprint.app.ui.theme.LocalEnableBlur
+import com.hpprint.app.ui.util.BlurredBar
+import com.hpprint.app.ui.util.rememberBlurBackdrop
+import androidx.compose.ui.graphics.Color
+import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import java.io.File
@@ -87,8 +85,6 @@ fun ScanPager(
     bottomInnerPadding: Dp,
     isCurrentPage: Boolean = true,
 ) {
-    val viewModel = viewModel<ScanViewModel>()
-    val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
@@ -99,9 +95,12 @@ fun ScanPager(
         } else {
             coroutineScope.launch {
                 Toast.makeText(context, context.getString(R.string.hp_scanning), Toast.LENGTH_SHORT).show()
-                val bytes = PrinterScan.scan(printer.ip)
-                if (bytes != null) {
-                    saveScanBytes(context, bytes)?.let { navigator.push(Route.ScanPreview(it)) }
+                val settings = ScanSettingsStore.load()
+                val bytes = PrinterScan.scan(printer.ip, settings)
+                val path = bytes?.let { saveScanBytes(context, it) }
+                if (path != null) {
+                    // PDF 与图片统一进入预览页：预览页可保存到系统目录并写入扫描历史
+                    navigator.push(Route.ScanPreview(path, autoRectify = false))
                 } else {
                     Toast.makeText(context, context.getString(R.string.hp_scan_failed), Toast.LENGTH_SHORT).show()
                 }
@@ -109,77 +108,98 @@ fun ScanPager(
         }
     }
 
-    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
-        if (bitmap != null) {
-            saveBitmapToCache(context, bitmap)?.let { navigator.push(Route.ScanPreview(it)) }
-        }
-    }
     val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) navigator.push(Route.ScanPreview(uri.toString()))
     }
 
+
+
+    val onNewDoc = { navigator.push(Route.ScanCamera()) }
+    val onOpenHistory = { navigator.push(Route.ScanHistory) }
+    val onIdPhoto = { navigator.push(Route.IdPhoto) }
+    val onIdCardCopy = { navigator.push(Route.IdCardCopy) }
+    val onIdPrint = { navigator.push(Route.IdPrint) }
+
     when (LocalUiMode.current) {
         UiMode.Miuix -> ScanMiuix(
-            state = state,
             bottomInnerPadding = bottomInnerPadding,
-            onCamera = { cameraLauncher.launch(null) },
             onGallery = { galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
             onScanFromPrinter = scanFromPrinter,
-            onDelete = viewModel::delete,
-            onOpen = { navigator.push(Route.ScanPreview(it.imageUri)) },
+            onScanSettings = { navigator.push(Route.ScanSettings) },
+            onNewDoc = onNewDoc,
+            onOpenHistory = onOpenHistory,
+            onIdPhoto = onIdPhoto,
+            onIdCardCopy = onIdCardCopy,
+            onIdPrint = onIdPrint,
         )
+
         UiMode.Material -> ScanMaterial(
-            state = state,
             bottomInnerPadding = bottomInnerPadding,
-            onCamera = { cameraLauncher.launch(null) },
             onGallery = { galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
             onScanFromPrinter = scanFromPrinter,
-            onDelete = viewModel::delete,
-            onOpen = { navigator.push(Route.ScanPreview(it.imageUri)) },
+            onScanSettings = { navigator.push(Route.ScanSettings) },
+            onNewDoc = onNewDoc,
+            onOpenHistory = onOpenHistory,
+            onIdPhoto = onIdPhoto,
+            onIdCardCopy = onIdCardCopy,
+            onIdPrint = onIdPrint,
         )
     }
-}
-
-private fun saveBitmapToCache(context: android.content.Context, bitmap: Bitmap): String? {
-    val dir = File(context.cacheDir, "scans")
-    dir.mkdirs()
-    val f = File(dir, "scan-${System.currentTimeMillis()}.jpg")
-    return runCatching {
-        FileOutputStream(f).use { bitmap.compress(Bitmap.CompressFormat.JPEG, 95, it) }
-        f.absolutePath
-    }.getOrNull()
 }
 
 private fun saveScanBytes(context: android.content.Context, bytes: ByteArray): String? {
     val dir = File(context.cacheDir, "scans")
     dir.mkdirs()
-    val f = File(dir, "scan-${System.currentTimeMillis()}.jpg")
+    val wantPdf = ScanSettingsStore.load().format == ScanOutputFormat.PDF
     return runCatching {
-        FileOutputStream(f).use { it.write(bytes) }
-        f.absolutePath
+        if (wantPdf) {
+            val out = ScanOutputFormat.toPdf(bytes) ?: return null
+            val f = File(dir, "scan-${System.currentTimeMillis()}.pdf")
+            FileOutputStream(f).use { it.write(out) }
+            f.absolutePath
+        } else {
+            val out = ScanOutputFormat.toJpeg(bytes) ?: return null
+            val f = File(dir, "scan-${System.currentTimeMillis()}.jpg")
+            FileOutputStream(f).use { it.write(out) }
+            f.absolutePath
+        }
     }.getOrNull()
 }
 
 @Composable
 private fun ScanMiuix(
-    state: com.hpprint.app.ui.viewmodel.ScanUiState,
     bottomInnerPadding: Dp,
-    onCamera: () -> Unit,
     onGallery: () -> Unit,
     onScanFromPrinter: () -> Unit,
-    onDelete: (Scan) -> Unit,
-    onOpen: (Scan) -> Unit,
+    onScanSettings: () -> Unit,
+    onNewDoc: () -> Unit,
+    onOpenHistory: () -> Unit,
+    onIdPhoto: () -> Unit,
+    onIdCardCopy: () -> Unit,
+    onIdPrint: () -> Unit,
 ) {
     val scrollBehavior = MiuixScrollBehavior()
+    val enableBlur = LocalEnableBlur.current
+    val backdrop = rememberBlurBackdrop(enableBlur)
+    val blurActive = backdrop != null
+    val barColor = if (blurActive) Color.Transparent else MiuixTheme.colorScheme.surface
     Scaffold(
-        topBar = { TopAppBar(title = stringResource(R.string.hp_scan_title), scrollBehavior = scrollBehavior) },
+        topBar = {
+            BlurredBar(backdrop) {
+                TopAppBar(
+                    title = stringResource(R.string.hp_scan_title),
+                    color = barColor,
+                    scrollBehavior = scrollBehavior,
+                )
+            }
+        },
         popupHost = { },
         contentWindowInsets = WindowInsets.systemBars.add(WindowInsets.displayCutout).only(WindowInsetsSides.Horizontal),
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
+                .then(if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier)
                 .fillMaxSize()
-                .scrollEndHaptic(HapticFeedbackType.LongPress)
                 .scrollEndVibration()
                 .overScrollVertical()
                 .nestedScroll(scrollBehavior.nestedScrollConnection)
@@ -194,12 +214,6 @@ private fun ScanMiuix(
                 ) {
                     Card(modifier = Modifier.fillMaxWidth()) {
                         ArrowPreference(
-                            title = stringResource(R.string.hp_scan_camera),
-                            summary = stringResource(R.string.hp_scan_hint),
-                            startAction = { Icon(Icons.Rounded.CameraAlt, stringResource(R.string.hp_scan_camera), modifier = Modifier.padding(end = 12.dp), tint = MiuixTheme.colorScheme.onBackground) },
-                            onClick = onCamera,
-                        )
-                        ArrowPreference(
                             title = stringResource(R.string.hp_scan_from_gallery),
                             summary = stringResource(R.string.hp_photos_hint),
                             startAction = { Icon(Icons.Rounded.PhotoLibrary, stringResource(R.string.hp_scan_from_gallery), modifier = Modifier.padding(end = 12.dp), tint = MiuixTheme.colorScheme.onBackground) },
@@ -211,42 +225,53 @@ private fun ScanMiuix(
                             startAction = { Icon(Icons.Rounded.DocumentScanner, stringResource(R.string.hp_scan_from_printer), modifier = Modifier.padding(end = 12.dp), tint = MiuixTheme.colorScheme.onBackground) },
                             onClick = onScanFromPrinter,
                         )
+                        ArrowPreference(
+                            title = stringResource(R.string.hp_scan_settings),
+                            summary = stringResource(R.string.hp_scan_settings),
+                            startAction = { Icon(Icons.Rounded.DocumentScanner, stringResource(R.string.hp_scan_settings), modifier = Modifier.padding(end = 12.dp), tint = MiuixTheme.colorScheme.onBackground) },
+                            onClick = onScanSettings,
+                        )
                     }
 
-                    if (state.scans.isEmpty()) {
-                        Card {
-                            BasicComponent(
-                                title = stringResource(R.string.hp_no_scans),
-                                summary = stringResource(R.string.hp_scan_now),
-                                startAction = {
-                                    Icon(Icons.Rounded.DocumentScanner, stringResource(R.string.hp_no_scans), modifier = Modifier.padding(end = 12.dp), tint = MiuixTheme.colorScheme.onBackground)
-                                },
-                            )
-                        }
-                    } else {
-                        Card(modifier = Modifier.fillMaxWidth()) {
-                            state.scans.forEach { scan ->
-                                BasicComponent(
-                                    title = scan.title,
-                                    summary = formatTimestamp(scan.createdAt),
-                                    onClick = { onOpen(scan) },
-                                    startAction = {
-                                        Icon(Icons.Rounded.DocumentScanner, scan.title, modifier = Modifier.padding(end = 12.dp), tint = MiuixTheme.colorScheme.onBackground)
-                                    },
-                                    endActions = {
-                                        top.yukonga.miuix.kmp.basic.IconButton(onClick = { onDelete(scan) }) {
-                                            top.yukonga.miuix.kmp.basic.Icon(
-                                                Icons.Rounded.Delete,
-                                                stringResource(R.string.hp_delete),
-                                                modifier = Modifier.size(20.dp),
-                                                tint = MiuixTheme.colorScheme.onBackground,
-                                            )
-                                        }
-                                    },
-                                )
-                            }
-                        }
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        ArrowPreference(
+                            title = stringResource(R.string.hp_scan_multi_title),
+                            summary = stringResource(R.string.hp_scan_multi_hint),
+                            startAction = { Icon(Icons.Rounded.DocumentScanner, stringResource(R.string.hp_scan_multi_title), modifier = Modifier.padding(end = 12.dp), tint = MiuixTheme.colorScheme.onBackground) },
+                            onClick = onNewDoc,
+                        )
                     }
+
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        ArrowPreference(
+                            title = stringResource(R.string.hp_scan_history),
+                            summary = stringResource(R.string.hp_scan_history_hint),
+                            startAction = { Icon(Icons.Rounded.History, stringResource(R.string.hp_scan_history), modifier = Modifier.padding(end = 12.dp), tint = MiuixTheme.colorScheme.onBackground) },
+                            onClick = onOpenHistory,
+                        )
+                    }
+
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        ArrowPreference(
+                            title = stringResource(R.string.hp_id_photo),
+                            summary = stringResource(R.string.hp_id_photo_hint),
+                            startAction = { Icon(Icons.Rounded.AccountBox, stringResource(R.string.hp_id_photo), modifier = Modifier.padding(end = 12.dp), tint = MiuixTheme.colorScheme.onBackground) },
+                            onClick = onIdPhoto,
+                        )
+                        ArrowPreference(
+                            title = stringResource(R.string.hp_id_card_copy),
+                            summary = stringResource(R.string.hp_id_card_copy_hint),
+                            startAction = { Icon(Icons.Rounded.Badge, stringResource(R.string.hp_id_card_copy), modifier = Modifier.padding(end = 12.dp), tint = MiuixTheme.colorScheme.onBackground) },
+                            onClick = onIdCardCopy,
+                        )
+                        ArrowPreference(
+                            title = stringResource(R.string.hp_id_print),
+                            summary = stringResource(R.string.hp_id_print_hint),
+                            startAction = { Icon(Icons.Rounded.ContactPage, stringResource(R.string.hp_id_print), modifier = Modifier.padding(end = 12.dp), tint = MiuixTheme.colorScheme.onBackground) },
+                            onClick = onIdPrint,
+                        )
+                    }
+
                     Spacer(Modifier.height(bottomInnerPadding))
                 }
             }
@@ -256,13 +281,15 @@ private fun ScanMiuix(
 
 @Composable
 private fun ScanMaterial(
-    state: com.hpprint.app.ui.viewmodel.ScanUiState,
     bottomInnerPadding: Dp,
-    onCamera: () -> Unit,
     onGallery: () -> Unit,
     onScanFromPrinter: () -> Unit,
-    onDelete: (Scan) -> Unit,
-    onOpen: (Scan) -> Unit,
+    onScanSettings: () -> Unit,
+    onNewDoc: () -> Unit,
+    onOpenHistory: () -> Unit,
+    onIdPhoto: () -> Unit,
+    onIdCardCopy: () -> Unit,
+    onIdPrint: () -> Unit,
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
     ExpressiveScaffold(
@@ -286,14 +313,6 @@ private fun ScanMaterial(
             SegmentedColumn(modifier = Modifier.fillMaxWidth()) {
                 item {
                     SegmentedListItem(
-                        onClick = onCamera,
-                        headlineContent = { Text(stringResource(R.string.hp_scan_camera)) },
-                        supportingContent = { Text(stringResource(R.string.hp_scan_hint)) },
-                        leadingContent = { Icon(Icons.Rounded.CameraAlt, stringResource(R.string.hp_scan_camera)) },
-                    )
-                }
-                item {
-                    SegmentedListItem(
                         onClick = onGallery,
                         headlineContent = { Text(stringResource(R.string.hp_scan_from_gallery)) },
                         supportingContent = { Text(stringResource(R.string.hp_photos_hint)) },
@@ -308,34 +327,62 @@ private fun ScanMaterial(
                         leadingContent = { Icon(Icons.Rounded.DocumentScanner, stringResource(R.string.hp_scan_from_printer)) },
                     )
                 }
+                item {
+                    SegmentedListItem(
+                        onClick = onScanSettings,
+                        headlineContent = { Text(stringResource(R.string.hp_scan_settings)) },
+                        supportingContent = { Text(stringResource(R.string.hp_scan_settings)) },
+                        leadingContent = { Icon(Icons.Rounded.DocumentScanner, stringResource(R.string.hp_scan_settings)) },
+                    )
+                }
             }
 
-            if (state.scans.isEmpty()) {
-                SegmentedColumn(modifier = Modifier.fillMaxWidth(), title = stringResource(R.string.hp_scan_history)) {
-                    item {
-                        SegmentedListItem(
-                            headlineContent = { Text(stringResource(R.string.hp_no_scans)) },
-                            leadingContent = { Icon(Icons.Rounded.DocumentScanner, stringResource(R.string.hp_no_scans)) },
-                        )
-                    }
+            SegmentedColumn(modifier = Modifier.fillMaxWidth(), title = stringResource(R.string.hp_scan_multi_title)) {
+                item {
+                    SegmentedListItem(
+                        onClick = onNewDoc,
+                        headlineContent = { Text(stringResource(R.string.hp_scan_multi_title)) },
+                        supportingContent = { Text(stringResource(R.string.hp_scan_multi_hint)) },
+                        leadingContent = { Icon(Icons.Rounded.DocumentScanner, stringResource(R.string.hp_scan_multi_title)) },
+                    )
                 }
-            } else {
-                SegmentedColumn(modifier = Modifier.fillMaxWidth(), title = stringResource(R.string.hp_scan_history)) {
-                    state.scans.forEach { scan ->
-                        item {
-                            SegmentedListItem(
-                                onClick = { onOpen(scan) },
-                                headlineContent = { Text(scan.title) },
-                                supportingContent = { Text(formatTimestamp(scan.createdAt)) },
-                                leadingContent = { Icon(Icons.Rounded.DocumentScanner, scan.title) },
-                                trailingContent = {
-                                    IconButton(onClick = { onDelete(scan) }) {
-                                        Icon(Icons.Rounded.Delete, stringResource(R.string.hp_delete), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
-                                },
-                            )
-                        }
-                    }
+            }
+
+            SegmentedColumn(modifier = Modifier.fillMaxWidth()) {
+                item {
+                    SegmentedListItem(
+                        onClick = onOpenHistory,
+                        headlineContent = { Text(stringResource(R.string.hp_scan_history)) },
+                        supportingContent = { Text(stringResource(R.string.hp_scan_history_hint)) },
+                        leadingContent = { Icon(Icons.Rounded.History, stringResource(R.string.hp_scan_history)) },
+                    )
+                }
+            }
+
+            SegmentedColumn(modifier = Modifier.fillMaxWidth()) {
+                item {
+                    SegmentedListItem(
+                        onClick = onIdPhoto,
+                        headlineContent = { Text(stringResource(R.string.hp_id_photo)) },
+                        supportingContent = { Text(stringResource(R.string.hp_id_photo_hint)) },
+                        leadingContent = { Icon(Icons.Rounded.AccountBox, stringResource(R.string.hp_id_photo)) },
+                    )
+                }
+                item {
+                    SegmentedListItem(
+                        onClick = onIdCardCopy,
+                        headlineContent = { Text(stringResource(R.string.hp_id_card_copy)) },
+                        supportingContent = { Text(stringResource(R.string.hp_id_card_copy_hint)) },
+                        leadingContent = { Icon(Icons.Rounded.Badge, stringResource(R.string.hp_id_card_copy)) },
+                    )
+                }
+                item {
+                    SegmentedListItem(
+                        onClick = onIdPrint,
+                        headlineContent = { Text(stringResource(R.string.hp_id_print)) },
+                        supportingContent = { Text(stringResource(R.string.hp_id_print_hint)) },
+                        leadingContent = { Icon(Icons.Rounded.ContactPage, stringResource(R.string.hp_id_print)) },
+                    )
                 }
             }
 

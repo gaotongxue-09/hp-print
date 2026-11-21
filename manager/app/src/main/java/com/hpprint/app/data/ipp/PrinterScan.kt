@@ -44,23 +44,23 @@ object PrinterScan {
         .callTimeout(190, TimeUnit.SECONDS)
         .build()
 
-    suspend fun scan(ip: String, timeoutMs: Int = 25000): ByteArray? = withContext(Dispatchers.IO) {
+    suspend fun scan(ip: String, settings: ScanSettings = ScanSettings(), timeoutMs: Int = 25000): ByteArray? = withContext(Dispatchers.IO) {
         // 不同打印机 eSCL 服务可能跑在不同端口；依次尝试 80/8080/443（明文 HTTP，避免自签证书问题）。
         val endpoints = listOf(80, 8080, 443)
         for (port in endpoints) {
             val base = "http://$ip:$port"
-            runCatching { scanBase(base) }.getOrNull()?.let {
+            runCatching { scanBase(base, settings) }.getOrNull()?.let {
                 if (it.isNotEmpty()) return@withContext it
             }
         }
         null
     }
 
-    private fun scanBase(baseUrl: String): ByteArray {
+    private fun scanBase(baseUrl: String, settings: ScanSettings): ByteArray {
         val (idle, maxW, maxH) = scannerStatus(baseUrl)
         if (!idle) throw IllegalStateException("扫描仪未就绪（被占用或预热中），请稍后重试")
 
-        val jobUri = createScanJob(baseUrl, maxW, maxH)
+        val jobUri = createScanJob(baseUrl, maxW, maxH, settings)
         Log.d(TAG, "扫描任务已创建: $jobUri")
 
         // 立即拉取（内部含长连接 + 断线重连重试）
@@ -109,11 +109,11 @@ object PrinterScan {
         return Triple(state == "Idle", w, h)
     }
 
-    private fun createScanJob(baseUrl: String, maxW: Int, maxH: Int): String {
+    private fun createScanJob(baseUrl: String, maxW: Int, maxH: Int, settings: ScanSettings): String {
         val url = "$baseUrl/eSCL/ScanJobs"
         val width = if (maxW > 0) maxW else 2480
         val height = if (maxH > 0) maxH else 3508
-        val body = buildScanJobXml(width, height)
+        val body = buildScanJobXml(width, height, settings)
             .toRequestBody("text/xml; charset=utf-8".toMediaType())
 
         val req = Request.Builder()
@@ -144,7 +144,7 @@ object PrinterScan {
                 val req = Request.Builder()
                     .url(url)
                     .get()
-                    .header("Accept", "image/jpeg, image/png, application/octet-stream")
+                    .header("Accept", "image/jpeg, image/png, application/pdf, application/octet-stream")
                     .build()
 
                 longClient.newCall(req).execute().use { resp ->
@@ -185,18 +185,20 @@ object PrinterScan {
 
     // ================= 工具 =================
 
-    private fun buildScanJobXml(width: Int, height: Int): String {
-        val r = 300
+    private fun buildScanJobXml(width: Int, height: Int, settings: ScanSettings): String {
+        val r = settings.dpi
+        val inputSource = if (settings.duplex) "Adf" else "Platen"
+        val duplexTag = if (settings.duplex) "  <scan:Duplex>true</scan:Duplex>\n" else ""
         return """<?xml version="1.0" encoding="UTF-8"?>
 <scan:ScanSettings xmlns:scan="$NS_SCAN" xmlns:pwg="$NS_PWG">
   <pwg:Version>2.0</pwg:Version>
   <pwg:ScanResolution>$r</pwg:ScanResolution>
   <scan:XResolution>$r</scan:XResolution>
   <scan:YResolution>$r</scan:YResolution>
-  <scan:ColorMode>RGB24</scan:ColorMode>
-  <pwg:DocumentFormat>image/jpeg</pwg:DocumentFormat>
-  <scan:InputSource>Platen</scan:InputSource>
-  <scan:ScanRegions>
+  <scan:ColorMode>${settings.colorMode}</scan:ColorMode>
+  <pwg:DocumentFormat>${settings.format}</pwg:DocumentFormat>
+  <scan:InputSource>$inputSource</scan:InputSource>
+$duplexTag  <scan:ScanRegions>
     <scan:ScanRegion>
       <scan:Width>$width</scan:Width>
       <scan:Height>$height</scan:Height>

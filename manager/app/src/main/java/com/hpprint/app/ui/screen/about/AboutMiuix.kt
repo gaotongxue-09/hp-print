@@ -92,7 +92,6 @@ import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
 import top.yukonga.miuix.kmp.utils.PressFeedbackType
 import top.yukonga.miuix.kmp.utils.overScrollVertical
-import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import com.hpprint.app.ui.util.scrollEndVibration
 import androidx.compose.ui.graphics.BlendMode as ComposeBlendMode
 
@@ -380,7 +379,6 @@ private fun AboutContent(
             state = lazyListState,
             modifier = Modifier
                 .fillMaxSize()
-                .scrollEndHaptic(HapticFeedbackType.LongPress)
                 .scrollEndVibration()
                 .overScrollVertical()
                 .nestedScroll(topAppBarScrollBehavior.nestedScrollConnection),
@@ -418,7 +416,7 @@ private fun AboutContent(
                     modifier = Modifier
                         .fillParentMaxHeight()
                         .padding(bottom = innerPadding.calculateBottomPadding() + 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     val glassCardModifier = Modifier
                         .padding(horizontal = 12.dp)
@@ -426,7 +424,7 @@ private fun AboutContent(
                             if (enableBlur) {
                                 Modifier.textureBlur(
                                     backdrop = backdrop,
-                                    shape = RoundedCornerShape(16.dp),
+                                    shape = RoundedCornerShape(20.dp),
                                     blurRadius = 60f,
                                     colors = BlurColors(blendColors = blendColors),
                                     enabled = true,
@@ -434,7 +432,7 @@ private fun AboutContent(
                             } else Modifier
                         )
                     val glassCardColors = CardDefaults.defaultColors(
-                        if (enableBlur) Color.Transparent else colorScheme.surfaceContainer,
+                        if (enableBlur) colorScheme.surface.copy(alpha = 0.4f) else colorScheme.surfaceContainer,
                         Color.Transparent,
                     )
 
@@ -459,8 +457,8 @@ private fun AboutContent(
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier
                                         .padding(end = 16.dp)
-                                        .size(48.dp)
-                                        .clip(RoundedCornerShape(24.dp)),
+                                        .size(56.dp)
+                                        .clip(RoundedCornerShape(28.dp)),
                                 )
                             },
                         )

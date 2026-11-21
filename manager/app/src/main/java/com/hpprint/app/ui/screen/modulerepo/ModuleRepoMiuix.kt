@@ -128,7 +128,6 @@ import top.yukonga.miuix.kmp.overlay.OverlayListPopup
 import top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
 import top.yukonga.miuix.kmp.utils.PressFeedbackType
 import top.yukonga.miuix.kmp.utils.overScrollVertical
-import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import com.hpprint.app.ui.util.scrollEndVibration
 
 @SuppressLint("LocalContextGetResourceValueCall")
@@ -423,7 +422,6 @@ fun ModuleRepoScreenMiuix(
                             state = lazyListState,
                             modifier = Modifier
                                 .fillMaxHeight()
-                                .scrollEndHaptic(HapticFeedbackType.LongPress)
                                 .scrollEndVibration()
                                 .overScrollVertical()
                                 .nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -558,7 +556,6 @@ private fun ReadmePage(
         LazyColumn(
             modifier = Modifier
                 .fillMaxHeight()
-                .scrollEndHaptic(HapticFeedbackType.LongPress)
                 .scrollEndVibration()
                 .overScrollVertical()
                 .nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -640,7 +637,6 @@ fun ReleasesPage(
         LazyColumn(
             modifier = Modifier
                 .fillMaxHeight()
-                .scrollEndHaptic(HapticFeedbackType.LongPress)
                 .scrollEndVibration()
                 .overScrollVertical()
                 .nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -920,7 +916,6 @@ fun InfoPage(
         LazyColumn(
             modifier = Modifier
                 .fillMaxHeight()
-                .scrollEndHaptic(HapticFeedbackType.LongPress)
                 .scrollEndVibration()
                 .overScrollVertical()
                 .nestedScroll(scrollBehavior.nestedScrollConnection),

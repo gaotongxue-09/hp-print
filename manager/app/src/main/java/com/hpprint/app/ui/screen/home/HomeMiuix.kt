@@ -87,7 +87,6 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
 import top.yukonga.miuix.kmp.theme.MiuixTheme.isDynamicColor
 import top.yukonga.miuix.kmp.utils.PressFeedbackType
 import top.yukonga.miuix.kmp.utils.overScrollVertical
-import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import com.hpprint.app.ui.util.scrollEndVibration
 
 @Composable
@@ -116,7 +115,6 @@ fun HomePagerMiuix(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxHeight()
-                    .scrollEndHaptic(HapticFeedbackType.LongPress)
                     .scrollEndVibration()
                     .overScrollVertical()
                     .nestedScroll(scrollBehavior.nestedScrollConnection)

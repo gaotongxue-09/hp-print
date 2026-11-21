@@ -6,7 +6,9 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Matrix
 import android.graphics.Paint
+import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
@@ -39,6 +41,8 @@ import kotlinx.coroutines.withContext
 import com.hpprint.app.data.ipp.PrintConfig
 import com.hpprint.app.data.render.DocumentLoader
 import com.hpprint.app.data.render.DocumentPages
+import com.hpprint.app.data.render.OfdRenderer
+import com.hpprint.app.data.ipp.PrintHelper
 import com.hpprint.app.data.ipp.PrinterIpp
 import com.hpprint.app.data.model.hp.PrintJobKind
 import com.hpprint.app.hpApp
@@ -46,6 +50,7 @@ import java.io.ByteArrayOutputStream
 import java.io.FileOutputStream
 import kotlin.math.ceil
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 data class PrintSpec(
     val title: String,
@@ -61,6 +66,7 @@ data class PrintSpec(
     val pageRange: String = "all",
     val pageStart: Int = 1,
     val pageEnd: Int = 1,
+    val photoSize: String = "",
     val printerIp: String = "",
     val printerPort: Int = 631,
     val printerScheme: String = "http",
@@ -102,14 +108,41 @@ object PrintDispatcher {
             val bitmap = withContext(Dispatchers.IO) { decodeImage(context, spec.sourceUri) }
             if (bitmap != null) {
                 val sent = try {
-                    PrinterIpp.printImage(
-                        ip = spec.printerIp,
-                        port = spec.printerPort,
-                        title = spec.title,
-                        bitmap = bitmap,
-                        config = spec.toPrintConfig(),
-                        scheme = spec.printerScheme,
-                    )
+                    val size = PhotoSizes.byKey(spec.photoSize)
+                    if (size != null) {
+                        // 定尺寸打印：居中裁切到目标宽高比 → 精确物理尺寸的 PDF 页，JPEG 兜底
+                        val config = spec.toPrintConfig()
+                        val targetW = PhotoSizes.widthPx(size)
+                        val targetH = PhotoSizes.heightPx(size)
+                        val sheet = PrintHelper.cropCover(bitmap, targetW, targetH)
+                        try {
+                            val effective = if (config.color) sheet else PrintHelper.toGrayscale(sheet)
+                            val pdf = PrintHelper.bitmapToPdfBytesExact(
+                                effective, PhotoSizes.pageWidthPt(size), PhotoSizes.pageHeightPt(size),
+                            )
+                            val jpg = PrintHelper.bitmapToJpegBytes(effective)
+                            if (effective !== sheet) runCatching { effective.recycle() }
+                            PrinterIpp.printDocument(
+                                ip = spec.printerIp,
+                                port = spec.printerPort,
+                                title = spec.title,
+                                candidates = listOf("application/pdf" to pdf, "image/jpeg" to jpg),
+                                config = config,
+                                scheme = spec.printerScheme,
+                            )
+                        } finally {
+                            runCatching { if (sheet !== bitmap) sheet.recycle() }
+                        }
+                    } else {
+                        PrinterIpp.printImage(
+                            ip = spec.printerIp,
+                            port = spec.printerPort,
+                            title = spec.title,
+                            bitmap = bitmap,
+                            config = spec.toPrintConfig(),
+                            scheme = spec.printerScheme,
+                        )
+                    }
                 } finally {
                     runCatching { bitmap.recycle() }
                 }
@@ -240,6 +273,7 @@ object PrintDispatcher {
                 PrintJobKind.TEXT -> printText(activity, printManager, spec, attrs)
                 PrintJobKind.HTML -> printHtml(activity, printManager, spec, attrs)
                 PrintJobKind.WEB -> printWeb(activity, printManager, spec, attrs)
+                PrintJobKind.OFD -> printOfd(activity, printManager, spec, attrs)
                 // Office 系统打印暂不支持（后续阶段实现本地解析前不弹系统打印对话框）
                 PrintJobKind.DOCX, PrintJobKind.XLSX, PrintJobKind.PPTX ->
                     Log.w(TAG, "dispatchSystem: 暂不支持该格式的系统打印 (kind=${spec.kind})")
@@ -286,8 +320,9 @@ object PrintDispatcher {
             Log.e(TAG, "手动双面: 正面打印失败 (ip=${spec.printerIp}:${spec.printerPort})")
             return false
         }
-        // 关键：等正面真正打完（打印机回到空闲）再提示翻面，避免边打印边翻面
-        PrinterIpp.waitUntilPrinterIdle(spec.printerIp, spec.printerPort, spec.printerScheme)
+        // 关键：等正面真正打完（作业完成 + 打印机物理空闲）再提示翻面，避免边打印边提示
+        val frontIdle = PrinterIpp.waitUntilPrinterIdle(spec.printerIp, spec.printerPort, spec.printerScheme)
+        Log.d(TAG, "手动双面: 正面等待打印机空闲结果=$frontIdle (ip=${spec.printerIp})")
 
         // ④ 提示翻面，用户取消则中止，不再打印背面
         if (!onManualFlip()) throw ManualDuplexCancelledException()
@@ -330,8 +365,10 @@ object PrintDispatcher {
         val renderer = PdfRenderer(pfd)
         return try {
             val media = mediaSize(spec.paperSize)
-            val frameW = (media.widthMils / 1000f * RENDER_DPI).toInt().coerceAtLeast(1)
-            val frameH = (media.heightMils / 1000f * RENDER_DPI).toInt().coerceAtLeast(1)
+            // 用四舍五入得到标准纸张的整数像素尺寸（A4@300dpi = 2480×3508），
+            // 截断会少 1px，打印机按纸张拉伸时容易在页尾压出一条横线。
+            val frameW = (media.widthMils / 1000f * RENDER_DPI).roundToInt().coerceAtLeast(1)
+            val frameH = (media.heightMils / 1000f * RENDER_DPI).roundToInt().coerceAtLeast(1)
             val selected = indices ?: spec.pageIndices(renderer.pageCount)
             val out = mutableListOf<ByteArray>()
             for (idx in selected) {
@@ -340,24 +377,31 @@ object PrintDispatcher {
                 val pw = page.width.toFloat()
                 val ph = page.height.toFloat()
                 val scale = min(frameW / pw, frameH / ph)
-                val cw = (pw * scale).toInt().coerceAtLeast(1)
-                val ch = (ph * scale).toInt().coerceAtLeast(1)
-                val content = Bitmap.createBitmap(cw, ch, Bitmap.Config.ARGB_8888)
-                page.render(content, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-                page.close()
-
+                val cw = (pw * scale).roundToInt().coerceIn(1, frameW)
+                val ch = (ph * scale).roundToInt().coerceIn(1, frameH)
+                // 先铺满白纸，再把 PDF 页一次性按矩阵绘制到整数像素位置，
+                // 避免中间位图二次采样在页边产生 1px 接缝线。
                 val frame = Bitmap.createBitmap(frameW, frameH, Bitmap.Config.ARGB_8888)
                 val canvas = Canvas(frame)
                 canvas.drawColor(Color.WHITE)
-                val left = (frameW - cw) / 2f
-                val top = (frameH - ch) / 2f
-                canvas.drawBitmap(content, left, top, Paint(Paint.FILTER_BITMAP_FLAG))
-                content.recycle()
+                val left = (frameW - cw) / 2
+                val top = (frameH - ch) / 2
+                val matrix = Matrix()
+                matrix.setScale(scale, scale)
+                matrix.postTranslate(left.toFloat(), top.toFloat())
+                page.render(
+                    frame,
+                    Rect(left, top, left + cw, top + ch),
+                    matrix,
+                    PdfRenderer.Page.RENDER_MODE_FOR_PRINT,
+                )
+                page.close()
 
                 val bos = ByteArrayOutputStream()
                 frame.compress(Bitmap.CompressFormat.JPEG, 92, bos)
                 frame.recycle()
                 out.add(bos.toByteArray())
+                Log.d(TAG, "renderPdfPages: page=${idx + 1}/${renderer.pageCount} frame=${frameW}x$frameH content=${cw}x$ch")
             }
             out
         } finally {
@@ -374,9 +418,14 @@ object PrintDispatcher {
         PrintJobKind.PDF -> readUriBytes(context, spec.sourceUri)
         PrintJobKind.IMAGE -> imageToPdf(context, spec)
         PrintJobKind.TEXT -> textToPdf(context, spec)
+        PrintJobKind.OFD -> ofdToPdf(context, spec)
         // DOCX/XLSX/PPTX/HTML：走 DocumentLoader 原生渲染直出 JPEG，不再生成 PDF；WEB 需联网走系统打印
         PrintJobKind.DOCX, PrintJobKind.XLSX, PrintJobKind.PPTX, PrintJobKind.HTML, PrintJobKind.WEB -> null
     }
+
+    /** OFD（电子发票）→ PDF 字节，复用轻量渲染器只提取文本。 */
+    private suspend fun ofdToPdf(context: Context, spec: PrintSpec): ByteArray? =
+        withContext(Dispatchers.IO) { OfdRenderer.toPdfBytes(context, spec.sourceUri) }
 
     /** Office/HTML 类型集合：这些格式走 DocumentLoader 原生渲染逐页位图 → JPEG。 */
     private val OFFICE_KINDS = setOf(PrintJobKind.DOCX, PrintJobKind.XLSX, PrintJobKind.PPTX, PrintJobKind.HTML)
@@ -412,8 +461,8 @@ object PrintDispatcher {
     ): List<ByteArray> {
         val selected = indices ?: spec.pageIndices(pages.pageCount)
         val media = mediaSize(spec.paperSize)
-        val frameW = (media.widthMils / 1000f * RENDER_DPI).toInt().coerceAtLeast(1)
-        val frameH = (media.heightMils / 1000f * RENDER_DPI).toInt().coerceAtLeast(1)
+        val frameW = (media.widthMils / 1000f * RENDER_DPI).roundToInt().coerceAtLeast(1)
+        val frameH = (media.heightMils / 1000f * RENDER_DPI).roundToInt().coerceAtLeast(1)
         val out = mutableListOf<ByteArray>()
         for (idx in selected) {
             if (idx < 0 || idx >= pages.pageCount) continue
@@ -422,11 +471,15 @@ object PrintDispatcher {
             val canvas = Canvas(frame)
             canvas.drawColor(Color.WHITE)
             val scale = min(frameW / content.width.toFloat(), frameH / content.height.toFloat())
-            val cw = (content.width * scale).toInt().coerceAtLeast(1)
-            val ch = (content.height * scale).toInt().coerceAtLeast(1)
-            val left = (frameW - cw) / 2f
-            val top = (frameH - ch) / 2f
-            canvas.drawBitmap(content, null, RectF(left, top, left + cw, top + ch), Paint(Paint.FILTER_BITMAP_FLAG))
+            val cw = (content.width * scale).roundToInt().coerceIn(1, frameW)
+            val ch = (content.height * scale).roundToInt().coerceIn(1, frameH)
+            val left = (frameW - cw) / 2
+            val top = (frameH - ch) / 2
+            canvas.drawBitmap(
+                content, null,
+                Rect(left, top, left + cw, top + ch),
+                Paint(Paint.FILTER_BITMAP_FLAG),
+            )
             content.recycle()
             val bos = ByteArrayOutputStream()
             frame.compress(Bitmap.CompressFormat.JPEG, 92, bos)
@@ -437,7 +490,8 @@ object PrintDispatcher {
     }
 
     private fun readUriBytes(context: Context, sourceUri: String): ByteArray? = runCatching {
-        context.contentResolver.openInputStream(Uri.parse(sourceUri))?.use { it.readBytes() }
+        // 扫描件/临时文件是绝对路径，contentResolver 只能读 content://，必须走 openInput 兼容两种情况
+        openInput(context, sourceUri)?.use { it.readBytes() }
     }.getOrElse { e ->
         Log.e(TAG, "readUriBytes 失败: uri=$sourceUri err=${e.javaClass.simpleName}:${e.message}")
         null
@@ -457,12 +511,26 @@ object PrintDispatcher {
         openInput(context, sourceUri)?.use { BitmapFactory.decodeStream(it, null, opts) }
     }.getOrNull()
 
-    private fun openInput(context: Context, sourceUri: String): java.io.InputStream? =
-        if (sourceUri.startsWith("content://") || sourceUri.startsWith("android.resource://")) {
-            context.contentResolver.openInputStream(Uri.parse(sourceUri))
+    private fun openInput(context: Context, sourceUri: String): java.io.InputStream? {
+        val uri = Uri.parse(sourceUri)
+        return if (uri.scheme == null || uri.scheme == "file") {
+            runCatching { java.io.FileInputStream(java.io.File(uri.path ?: sourceUri)) }.getOrNull()
         } else {
-            runCatching { java.io.FileInputStream(java.io.File(sourceUri)) }.getOrNull()
+            runCatching { context.contentResolver.openInputStream(uri) }.getOrNull()
         }
+    }
+
+    /** 打开 PDF 的随机读取描述符：同样要同时支持 content:// 与绝对路径。 */
+    private fun openPdfDescriptor(context: Context, sourceUri: String): ParcelFileDescriptor? {
+        val uri = Uri.parse(sourceUri)
+        return runCatching {
+            if (uri.scheme == null || uri.scheme == "file") {
+                ParcelFileDescriptor.open(java.io.File(uri.path ?: sourceUri), ParcelFileDescriptor.MODE_READ_ONLY)
+            } else {
+                context.contentResolver.openFileDescriptor(uri, "r")
+            }
+        }.getOrNull()
+    }
 
     private fun imageToPdf(context: Context, spec: PrintSpec): ByteArray? {
         val bitmap = decodeImage(context, spec.sourceUri) ?: return null
@@ -602,10 +670,7 @@ object PrintDispatcher {
     }
 
     private fun printPdf(context: Context, pm: PrintManager, spec: PrintSpec, attrs: PrintAttributes) {
-        val uri = Uri.parse(spec.sourceUri)
-        val pfd: ParcelFileDescriptor = runCatching {
-            context.contentResolver.openFileDescriptor(uri, "r")
-        }.getOrNull() ?: return
+        val pfd: ParcelFileDescriptor = openPdfDescriptor(context, spec.sourceUri) ?: return
         val renderer = PdfRenderer(pfd)
 
         val adapter = object : PrintDocumentAdapter() {
@@ -681,6 +746,14 @@ object PrintDispatcher {
         }
 
         pm.print(spec.title, adapter, attrs)
+    }
+
+    /** OFD 系统打印回退：先渲染成 PDF 临时文件，再走 PDF 打印。 */
+    private fun printOfd(context: Context, pm: PrintManager, spec: PrintSpec, attrs: PrintAttributes) {
+        val pdf = runCatching { OfdRenderer.toPdfBytes(context, spec.sourceUri) }.getOrNull() ?: return
+        val temp = java.io.File.createTempFile("hp_ofd", ".pdf", context.cacheDir)
+        runCatching { temp.writeBytes(pdf) }
+        printPdf(context, pm, spec.copy(sourceUri = Uri.fromFile(temp).toString()), attrs)
     }
 
     private fun printText(context: Context, pm: PrintManager, spec: PrintSpec, attrs: PrintAttributes) {
@@ -787,10 +860,7 @@ object PrintDispatcher {
         load(webView)
     }
 
-    private fun readText(context: Context, uriString: String): String? {
-        val uri = Uri.parse(uriString)
-        return runCatching {
-            context.contentResolver.openInputStream(uri)?.bufferedReader()?.readText()
-        }.getOrNull()
-    }
+    private fun readText(context: Context, uriString: String): String? = runCatching {
+        openInput(context, uriString)?.bufferedReader()?.readText()
+    }.getOrNull()
 }

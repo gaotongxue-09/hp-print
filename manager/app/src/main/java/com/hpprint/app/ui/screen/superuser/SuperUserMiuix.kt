@@ -102,7 +102,6 @@ import top.yukonga.miuix.kmp.icon.extended.Sort
 import top.yukonga.miuix.kmp.overlay.OverlayListPopup
 import top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
-import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import com.hpprint.app.ui.util.scrollEndVibration
 
 @Composable
@@ -441,7 +440,6 @@ fun SuperUserPagerMiuix(
                         state = lazyListState,
                         modifier = Modifier
                             .fillMaxHeight()
-                            .scrollEndHaptic(HapticFeedbackType.LongPress)
                             .scrollEndVibration()
                             .overScrollVertical()
                             .nestedScroll(scrollBehavior.nestedScrollConnection),

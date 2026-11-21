@@ -36,6 +36,32 @@ object ScanSaver {
         }.getOrNull()
     }
 
+    /** 把扫描得到的 PDF 复制到系统下载目录 Downloads/HP打印。 */
+    fun savePdf(context: Context, source: String, displayName: String): String? {
+        val resolver = context.contentResolver
+        val values = ContentValues().apply {
+            put(MediaStore.Downloads.DISPLAY_NAME, displayName)
+            put(MediaStore.Downloads.MIME_TYPE, "application/pdf")
+            put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/HP打印")
+            put(MediaStore.Downloads.IS_PENDING, 1)
+        }
+        val uri = runCatching {
+            resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+        }.getOrNull() ?: return null
+        return runCatching {
+            val input = if (source.startsWith("content://")) {
+                resolver.openInputStream(Uri.parse(source))
+            } else {
+                java.io.FileInputStream(java.io.File(source))
+            }
+            input?.use { i -> resolver.openOutputStream(uri)?.use { o -> i.copyTo(o) } }
+            values.clear()
+            values.put(MediaStore.Downloads.IS_PENDING, 0)
+            resolver.update(uri, values, null, null)
+            uri.toString()
+        }.getOrNull()
+    }
+
     fun copyUri(context: Context, source: Uri, displayName: String): String? {
         val resolver = context.contentResolver
         val values = ContentValues().apply {

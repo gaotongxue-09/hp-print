@@ -1,5 +1,9 @@
 package com.hpprint.app.ui.screen.dashboard
 
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
+
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -45,7 +49,6 @@ import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -54,6 +57,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -72,18 +76,24 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.hpprint.app.BuildConfig
 import com.hpprint.app.R
 import com.hpprint.app.data.model.hp.Printer
 import com.hpprint.app.data.model.hp.PrinterStatus
+import com.hpprint.app.data.model.hp.PrintJobStatus
+import com.hpprint.app.data.repository.SettingsRepositoryImpl
 import com.hpprint.app.ui.LocalMainPagerState
 import com.hpprint.app.ui.LocalUiMode
 import com.hpprint.app.ui.UiMode
+import com.hpprint.app.ui.component.WarningLevel
+import com.hpprint.app.ui.component.dialog.rememberConfirmDialog
 import com.hpprint.app.ui.component.material.ExpressiveScaffold
 import com.hpprint.app.ui.component.material.SegmentedColumn
 import com.hpprint.app.ui.component.material.SegmentedDropdownItem
 import com.hpprint.app.ui.component.material.SegmentedListItem
 import com.hpprint.app.ui.component.material.TonalCard
 import com.hpprint.app.ui.component.material.expressiveTopAppBarColors
+import com.hpprint.app.ui.component.miuix.WarningCard
 import com.hpprint.app.ui.component.statustag.StatusTag
 import com.hpprint.app.ui.hp.describeFile
 import com.hpprint.app.ui.hp.HP_PRINT_DOC_MIME_TYPES
@@ -98,10 +108,14 @@ import com.hpprint.app.ui.navigation3.Navigator
 import com.hpprint.app.ui.navigation3.PrintFile
 import com.hpprint.app.ui.navigation3.Route
 import com.hpprint.app.ui.viewmodel.HomeDashboardViewModel
+import com.hpprint.app.ui.util.checkNewVersion
+import com.hpprint.app.ui.util.module.LatestVersionInfo
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardDefaults
-import top.yukonga.miuix.kmp.basic.IconButton
+import com.hpprint.app.ui.util.PressableIconButton
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.TopAppBar
@@ -110,7 +124,6 @@ import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.PressFeedbackType
 import top.yukonga.miuix.kmp.utils.overScrollVertical
-import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import com.hpprint.app.ui.util.scrollEndVibration
 import com.hpprint.app.ui.theme.LocalEnableBlur
 import com.hpprint.app.ui.util.BlurredBar
@@ -131,11 +144,14 @@ fun DashboardPager(
     val mainState = LocalMainPagerState.current
 
     val docPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
-        if (uris.isNotEmpty()) {
-            val files = uris.map { uri ->
-                val (kind, title) = describeFile(context, uri)
-                PrintFile(kind.name, uri.toString(), title)
-            }
+        val files = uris.mapNotNull { uri ->
+            val (kind, title) = describeFile(context, uri)
+            kind?.let { PrintFile(it.name, uri.toString(), title) }
+        }
+        if (files.size < uris.size) {
+            Toast.makeText(context, R.string.hp_print_unsupported_file, Toast.LENGTH_SHORT).show()
+        }
+        if (files.isNotEmpty()) {
             navigator.push(Route.PrintSetup(files = files))
         }
     }
@@ -188,6 +204,78 @@ private data class DashboardActions(
     val onManagePrinters: () -> Unit,
 )
 
+// 打印机是否正在执行工作任务：有排队/打印中的作业，或打印机自身处于忙碌状态。
+private fun isPrinterWorking(state: com.hpprint.app.ui.viewmodel.HomeDashboardUiState): Boolean =
+    state.defaultPrinter?.status == PrinterStatus.BUSY ||
+        state.recentJobs.any { it.status == PrintJobStatus.QUEUED || it.status == PrintJobStatus.PRINTING }
+
+@Composable
+private fun KeepForegroundNoticeMiuix() {
+    WarningCard(
+        message = stringResource(R.string.hp_keep_foreground),
+        modifier = Modifier.fillMaxWidth(),
+        level = WarningLevel.Notice,
+    )
+}
+
+@Composable
+private fun KeepForegroundNoticeMaterial() {
+    TonalCard(
+        containerColor = Color(0xFFFFF0DB),
+        contentColor = Color(0xFFF5A623),
+    ) {
+        Text(
+            text = stringResource(R.string.hp_keep_foreground),
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+        )
+    }
+}
+
+@Composable
+private fun UpdateNotice() {
+    val context = LocalContext.current
+    val settings = remember { SettingsRepositoryImpl() }
+    var latest by remember { mutableStateOf<LatestVersionInfo?>(null) }
+    val info = latest
+
+    val openUrl = {
+        info?.downloadUrl?.takeIf { it.isNotBlank() }?.let { url ->
+            runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+        }
+        Unit
+    }
+    val dialog = rememberConfirmDialog(onConfirm = openUrl)
+
+    LaunchedEffect(Unit) {
+        if (!settings.checkUpdate) return@LaunchedEffect
+        val found = withContext(Dispatchers.IO) { checkNewVersion() }
+        if (found.versionCode > BuildConfig.VERSION_CODE) latest = found
+    }
+
+    if (info != null && info.versionCode > BuildConfig.VERSION_CODE) {
+        WarningCard(
+            message = stringResource(R.string.new_version_available, info.versionCode),
+            modifier = Modifier.fillMaxWidth(),
+            level = WarningLevel.Notice,
+            onClick = {
+                if (info.changelog.isBlank()) {
+                    openUrl()
+                } else {
+                    dialog.showConfirm(
+                        title = context.getString(R.string.module_changelog),
+                        content = info.changelog,
+                        markdown = true,
+                        confirm = context.getString(R.string.module_update),
+                    )
+                }
+            },
+        )
+    }
+}
+
 @Composable
 private fun DashboardMiuix(
     state: com.hpprint.app.ui.viewmodel.HomeDashboardUiState,
@@ -215,7 +303,7 @@ private fun DashboardMiuix(
                     title = stringResource(R.string.app_name),
                     scrollBehavior = scrollBehavior,
                     actions = {
-                        IconButton(onClick = onRefreshPrinters) {
+                        PressableIconButton(onClick = onRefreshPrinters, enabled = !isRefreshing) {
                             Icon(
                                 Icons.Rounded.Refresh,
                                 stringResource(R.string.hp_refresh),
@@ -233,7 +321,6 @@ private fun DashboardMiuix(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .scrollEndHaptic(HapticFeedbackType.LongPress)
                     .scrollEndVibration()
                     .overScrollVertical()
                     .nestedScroll(scrollBehavior.nestedScrollConnection)
@@ -246,6 +333,10 @@ private fun DashboardMiuix(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.padding(top = 12.dp),
                 ) {
+                    if (isPrinterWorking(state)) {
+                        UpdateNotice()
+                        KeepForegroundNoticeMiuix()
+                    }
                     PrinterStatusCardMiuix(state, onManagePrinters, onRenamePrinter)
                     InkLevelsMiuix(state.defaultPrinter)
                     if (state.allPrinters.size > 1) {
@@ -265,7 +356,6 @@ private fun DashboardMiuix(
                     QuickActionsMiuix(
                         actions = DashboardActions(onPrintDocuments, onPrintPhotos, onWebPrint, onScan, onManagePrinters),
                     )
-                    RecentJobsMiuix(state)
                     Spacer(Modifier.height(bottomInnerPadding))
                 }
             }
@@ -502,23 +592,6 @@ private fun QuickActionsMiuix(actions: DashboardActions) {
 }
 
 @Composable
-private fun RecentJobsMiuix(state: com.hpprint.app.ui.viewmodel.HomeDashboardUiState) {
-    if (state.recentJobs.isEmpty()) return
-    Card(modifier = Modifier.fillMaxWidth()) {
-        state.recentJobs.forEach { job ->
-            val (bg, fg) = jobStatusColors(job.status)
-            BasicComponent(
-                title = job.title,
-                summary = "${stringResource(R.string.hp_copies)} ${job.copies} · ${job.paperSize} · ${formatTimestamp(job.createdAt)}",
-                endActions = {
-                    StatusTag(label = jobStatusLabel(job.status), backgroundColor = bg, contentColor = fg)
-                },
-            )
-        }
-    }
-}
-
-@Composable
 private fun DashboardMaterial(
     state: com.hpprint.app.ui.viewmodel.HomeDashboardUiState,
     bottomInnerPadding: Dp,
@@ -543,7 +616,7 @@ private fun DashboardMaterial(
                 colors = expressiveTopAppBarColors(),
                 scrollBehavior = scrollBehavior,
                 actions = {
-                    IconButton(onClick = onRefreshPrinters, enabled = !isRefreshing) {
+                    PressableIconButton(onClick = onRefreshPrinters, enabled = !isRefreshing) {
                         Icon(
                             Icons.Rounded.Refresh,
                             stringResource(R.string.hp_refresh),
@@ -563,6 +636,10 @@ private fun DashboardMaterial(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(13.dp),
         ) {
+            if (isPrinterWorking(state)) {
+                UpdateNotice()
+                KeepForegroundNoticeMaterial()
+            }
             val printer = state.defaultPrinter
             if (printer == null) {
                 TonalCard(onClick = onManagePrinters) {
@@ -696,21 +773,6 @@ private fun DashboardMaterial(
                         leadingContent = { Icon(Icons.Rounded.DocumentScanner, stringResource(R.string.hp_start_scan)) },
                         trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null) },
                     )
-                }
-            }
-
-            if (state.recentJobs.isNotEmpty()) {
-                SegmentedColumn(modifier = Modifier.fillMaxWidth(), title = stringResource(R.string.hp_recent_jobs)) {
-                    state.recentJobs.forEach { job ->
-                        item {
-                            val (bg, fg) = jobStatusColors(job.status)
-                            SegmentedListItem(
-                                headlineContent = { Text(job.title) },
-                                supportingContent = { Text("${stringResource(R.string.hp_copies)} ${job.copies} · ${job.paperSize} · ${formatTimestamp(job.createdAt)}") },
-                                trailingContent = { StatusTag(label = jobStatusLabel(job.status), backgroundColor = bg, contentColor = fg) },
-                            )
-                        }
-                    }
                 }
             }
 

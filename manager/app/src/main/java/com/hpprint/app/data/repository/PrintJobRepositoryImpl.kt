@@ -46,6 +46,12 @@ class PrintJobRepositoryImpl private constructor() : PrintJobRepository {
 
     override suspend fun cancel(id: String) = updateStatus(id, PrintJobStatus.CANCELLED)
 
+    override suspend fun rename(id: String, title: String) {
+        val name = title.trim()
+        if (name.isEmpty()) return
+        commit(_jobs.value.map { if (it.id == id) it.copy(title = name) else it })
+    }
+
     override suspend fun remove(id: String) {
         commit(_jobs.value.filterNot { it.id == id })
     }

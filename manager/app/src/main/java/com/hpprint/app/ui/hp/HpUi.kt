@@ -77,10 +77,10 @@ private val timestampFormat = SimpleDateFormat("MMM d, HH:mm", Locale.getDefault
 
 fun formatTimestamp(ms: Long): String = if (ms <= 0) "" else timestampFormat.format(Date(ms))
 
-/** 打印文档选择器允许的 MIME 类型：PDF/文本/HTML/图片 + Office + 通配兜底（保证任意文档都能选到）。 */
+/** 打印文档选择器允许的 MIME 类型：只列出应用实际能打印的格式，避免可选到无法打印的文件。 */
 val HP_PRINT_DOC_MIME_TYPES: Array<String> = arrayOf(
     "application/pdf",
-    "text/*",
+    "text/plain",
     "text/html",
     "image/*",
     "application/msword",
@@ -89,11 +89,18 @@ val HP_PRINT_DOC_MIME_TYPES: Array<String> = arrayOf(
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     "application/vnd.ms-powerpoint",
     "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-    "*/*",
+    "application/ofd",
+)
+
+/** 发票打印选择器允许的 MIME 类型：PDF / OFD 电子发票 + 图片发票。 */
+val HP_PRINT_INVOICE_MIME_TYPES: Array<String> = arrayOf(
+    "application/pdf",
+    "application/ofd",
+    "image/*",
 )
 
 /** Derive a printable kind + display title from a picked content URI. */
-fun describeFile(context: Context, uri: Uri): Pair<PrintJobKind, String> {
+fun describeFile(context: Context, uri: Uri): Pair<PrintJobKind?, String> {
     val mime = context.contentResolver.getType(uri) ?: ""
     val name = queryDisplayName(context, uri) ?: uri.lastPathSegment ?: "Document"
     val lower = name.lowercase(Locale.ROOT)
@@ -108,8 +115,10 @@ fun describeFile(context: Context, uri: Uri): Pair<PrintJobKind, String> {
             lower.endsWith(".xlsx") || lower.endsWith(".xls") -> PrintJobKind.XLSX
         mime.contains("presentationml") || mime.contains("ms-powerpoint") ||
             lower.endsWith(".pptx") || lower.endsWith(".ppt") -> PrintJobKind.PPTX
+        mime.contains("ofd") || lower.endsWith(".ofd") -> PrintJobKind.OFD
         mime.startsWith("text/") -> PrintJobKind.TEXT
-        else -> PrintJobKind.PDF
+        // 其余类型应用无法打印，返回 null 由调用方跳过
+        else -> null
     }
     return kind to name
 }

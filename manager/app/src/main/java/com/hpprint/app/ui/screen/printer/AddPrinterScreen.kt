@@ -57,6 +57,11 @@ import com.hpprint.app.ui.component.miuix.EditText
 import com.hpprint.app.ui.component.statustag.StatusTag
 import com.hpprint.app.ui.hp.printerStatusColors
 import com.hpprint.app.ui.hp.printerStatusLabel
+import com.hpprint.app.ui.theme.LocalEnableBlur
+import com.hpprint.app.ui.util.BlurredBar
+import com.hpprint.app.ui.util.rememberBlurBackdrop
+import androidx.compose.ui.graphics.Color
+import top.yukonga.miuix.kmp.blur.layerBackdrop
 import com.hpprint.app.ui.navigation3.LocalNavigator
 import com.hpprint.app.ui.navigation3.Route
 import com.hpprint.app.ui.viewmodel.PrinterViewModel
@@ -112,22 +117,30 @@ private fun AddPrinterMiuix(
     onBack: () -> Unit,
     onOpenDetail: (String) -> Unit,
 ) {
+    val enableBlur = LocalEnableBlur.current
+    val backdrop = rememberBlurBackdrop(enableBlur)
+    val blurActive = backdrop != null
+    val barColor = if (blurActive) Color.Transparent else MiuixTheme.colorScheme.surface
     Scaffold(
         topBar = {
-            SmallTopAppBar(
-                title = stringResource(R.string.hp_add_printer),
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(MiuixIcons.Back, null, tint = MiuixTheme.colorScheme.onBackground)
-                    }
-                },
-            )
+            BlurredBar(backdrop) {
+                SmallTopAppBar(
+                    title = stringResource(R.string.hp_add_printer),
+                    color = barColor,
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(MiuixIcons.Back, null, tint = MiuixTheme.colorScheme.onBackground)
+                        }
+                    },
+                )
+            }
         },
         popupHost = { },
         contentWindowInsets = WindowInsets.systemBars.add(WindowInsets.displayCutout).only(WindowInsetsSides.Horizontal),
     ) { innerPadding ->
         Column(
             modifier = Modifier
+                .then(if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier)
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())

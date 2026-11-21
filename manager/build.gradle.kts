@@ -15,25 +15,10 @@ extra["androidTargetCompatibility"] = JavaVersion.VERSION_21
 extra["managerVersionCode"] = getVersionCode()
 extra["managerVersionName"] = getVersionName()
 
-fun getGitCommitCount(): Int {
-    return runCatching {
-        val process = Runtime.getRuntime().exec(arrayOf("git", "rev-list", "--count", "HEAD"))
-        process.inputStream.bufferedReader().use { it.readText().trim().toInt() }
-    }.getOrDefault(0)
-}
-
-fun getGitDescribe(): String {
-    return runCatching {
-        val process = Runtime.getRuntime().exec(arrayOf("git", "describe", "--tags", "--always"))
-        process.inputStream.bufferedReader().use { it.readText().trim() }
-    }.getOrDefault("v1.0.0").ifBlank { "v1.0.0" }
-}
-
 fun getVersionCode(): Int {
-    val commitCount = getGitCommitCount()
-    return 30000 + commitCount
+    return 40000
 }
 
 fun getVersionName(): String {
-    return getGitDescribe()
+    return "2.0.0"
 }

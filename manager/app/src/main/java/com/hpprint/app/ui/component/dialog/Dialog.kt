@@ -11,6 +11,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
@@ -327,18 +329,29 @@ private fun rememberConfirmDialog(visuals: ConfirmDialogVisuals, callback: Confi
         }
     )
 
+    // 弹窗按钮统一临界反馈震动
+    val strongHaptic = com.hpprint.app.ui.util.rememberEdgeHaptic()
+    val onConfirmClick: () -> Unit = {
+        strongHaptic()
+        coroutineScope.launch { resultChannel.send(ConfirmResult.Confirmed) }
+    }
+    val onDismissClick: () -> Unit = {
+        strongHaptic()
+        coroutineScope.launch { resultChannel.send(ConfirmResult.Canceled) }
+    }
+
     when (LocalUiMode.current) {
         UiMode.Miuix -> ConfirmDialogMiuix(
             handle.visuals,
-            confirm = { coroutineScope.launch { resultChannel.send(ConfirmResult.Confirmed) } },
-            dismiss = { coroutineScope.launch { resultChannel.send(ConfirmResult.Canceled) } },
+            confirm = onConfirmClick,
+            dismiss = onDismissClick,
             showDialog = visible
         )
 
         UiMode.Material -> ConfirmDialogMaterial(
             handle.visuals,
-            confirm = { coroutineScope.launch { resultChannel.send(ConfirmResult.Confirmed) } },
-            dismiss = { coroutineScope.launch { resultChannel.send(ConfirmResult.Canceled) } },
+            confirm = onConfirmClick,
+            dismiss = onDismissClick,
             showDialog = visible
         )
     }

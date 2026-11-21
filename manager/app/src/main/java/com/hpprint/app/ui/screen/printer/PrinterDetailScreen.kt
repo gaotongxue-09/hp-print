@@ -50,6 +50,10 @@ import com.hpprint.app.R
 import com.hpprint.app.data.model.hp.SupplyInfo
 import com.hpprint.app.ui.LocalUiMode
 import com.hpprint.app.ui.UiMode
+import com.hpprint.app.ui.theme.LocalEnableBlur
+import com.hpprint.app.ui.util.BlurredBar
+import com.hpprint.app.ui.util.rememberBlurBackdrop
+import top.yukonga.miuix.kmp.blur.layerBackdrop
 import com.hpprint.app.ui.component.material.ExpressiveScaffold
 import com.hpprint.app.ui.component.material.SegmentedColumn
 import com.hpprint.app.ui.component.material.SegmentedListItem
@@ -100,22 +104,30 @@ private fun PrinterDetailMiuix(
     onRemove: () -> Unit,
     onBack: () -> Unit,
 ) {
+    val enableBlur = LocalEnableBlur.current
+    val backdrop = rememberBlurBackdrop(enableBlur)
+    val blurActive = backdrop != null
+    val barColor = if (blurActive) Color.Transparent else MiuixTheme.colorScheme.surface
     Scaffold(
         topBar = {
-            SmallTopAppBar(
-                title = stringResource(R.string.hp_printer_detail),
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(MiuixIcons.Back, null, tint = MiuixTheme.colorScheme.onBackground)
-                    }
-                },
-            )
+            BlurredBar(backdrop) {
+                SmallTopAppBar(
+                    title = stringResource(R.string.hp_printer_detail),
+                    color = barColor,
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(MiuixIcons.Back, null, tint = MiuixTheme.colorScheme.onBackground)
+                        }
+                    },
+                )
+            }
         },
         popupHost = { },
         contentWindowInsets = WindowInsets.systemBars.add(WindowInsets.displayCutout).only(WindowInsetsSides.Horizontal),
     ) { innerPadding ->
         Column(
             modifier = Modifier
+                .then(if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier)
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())

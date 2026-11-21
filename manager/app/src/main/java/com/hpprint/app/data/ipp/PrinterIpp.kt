@@ -555,13 +555,16 @@ object PrinterIpp {
     ): Boolean = withContext(Dispatchers.IO) {
         // ① 有明确 job-id 时，权威等待该作业 finish（completed/aborted/canceled）
         val handle = lastHandle
+        var jobConfirmed = false
         if (handle != null && handle.ip == ip && handle.jobId > 0) {
             val ep = endpointCache[ip] ?: Endpoint(handle.scheme, handle.ip, handle.port)
-            if (awaitJobs(ep, listOf(handle.jobId), timeoutMs)) return@withContext true
-            Log.w(TAG, "waitIdle: 按 job-id 等待未确认完成，退回 printer-state 轮询兜底")
+            jobConfirmed = awaitJobs(ep, listOf(handle.jobId), timeoutMs)
+            if (!jobConfirmed) Log.w(TAG, "waitIdle: 按 job-id 等待未确认完成，退回 printer-state 轮询兜底")
         }
-        // ② 无 job-id（或兜底）：按 printer-state 轮询
-        waitByPrinterState(ip, port, scheme, timeoutMs)
+        // ② 作业状态完成不代表纸张已打完（HP 可能提前上报 completed），
+        //    再确认打印机物理空闲（idle 且队列为空）后才算真正打完。
+        //    已确认作业完成时跳过「确认任务被接收」阶段，避免空等 25 秒。
+        waitByPrinterState(ip, port, scheme, timeoutMs, requireAccept = !jobConfirmed)
     }
 
     /** 按 job-id 权威等待作业完成（completed=9）。aborted/canceled 判失败；其余继续等。 */
@@ -602,8 +605,14 @@ object PrinterIpp {
         return false
     }
 
-    /** 按 printer-state 轮询：先确认任务被接收，再等空闲。 */
-    private suspend fun waitByPrinterState(ip: String, port: Int, scheme: String, timeoutMs: Int): Boolean {
+    /** 按 printer-state 轮询：先确认任务被接收（[requireAccept]），再等空闲。 */
+    private suspend fun waitByPrinterState(
+        ip: String,
+        port: Int,
+        scheme: String,
+        timeoutMs: Int,
+        requireAccept: Boolean = true,
+    ): Boolean {
         val endpoints = endpointList(ip, port, scheme)
 
         fun query(): StateSnapshot? {
@@ -614,21 +623,23 @@ object PrinterIpp {
         }
 
         // 阶段1：确认任务被接收（processing 或队列>0），最多 25s
-        var saw = false
-        val t1 = System.currentTimeMillis()
-        while (System.currentTimeMillis() - t1 < 25000) {
-            val q = query()
-            if (q != null && (q.printerState == STATE_PROCESSING || q.queuedCount > 0)) {
-                saw = true
-                break
+        if (requireAccept) {
+            var saw = false
+            val t1 = System.currentTimeMillis()
+            while (System.currentTimeMillis() - t1 < 25000) {
+                val q = query()
+                if (q != null && (q.printerState == STATE_PROCESSING || q.queuedCount > 0)) {
+                    saw = true
+                    break
+                }
+                delay(1000)
             }
-            delay(1000)
+            if (!saw) {
+                Log.w(TAG, "waitIdle: 未检测到任务被接收")
+                return false
+            }
+            Log.d(TAG, "waitIdle: 打印机已开始处理，等待物理打印完成 ...")
         }
-        if (!saw) {
-            Log.w(TAG, "waitIdle: 未检测到任务被接收")
-            return false
-        }
-        Log.d(TAG, "waitIdle: 打印机已开始处理，等待物理打印完成 ...")
 
         // 阶段2：等待空闲（idle 且队列为空）
         val t2 = System.currentTimeMillis()

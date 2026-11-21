@@ -1,9 +1,11 @@
 package com.hpprint.app.ui.screen.print
 
+import android.widget.Toast
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -28,9 +30,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.rounded.Article
+import androidx.compose.material.icons.rounded.Badge
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.ContactPage
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.Face
+import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Image
+import androidx.compose.material.icons.rounded.ReceiptLong
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -41,6 +50,9 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -55,8 +67,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.hpprint.app.R
 import com.hpprint.app.data.model.hp.PrintJob
 import com.hpprint.app.data.model.hp.PrintJobStatus
+import com.hpprint.app.data.papertemplate.model.PaperType
 import com.hpprint.app.ui.LocalUiMode
 import com.hpprint.app.ui.UiMode
+import com.hpprint.app.ui.component.dialog.RenameDialog
 import com.hpprint.app.ui.component.material.ExpressiveScaffold
 import com.hpprint.app.ui.component.material.SegmentedColumn
 import com.hpprint.app.ui.component.material.SegmentedListItem
@@ -64,6 +78,7 @@ import com.hpprint.app.ui.component.material.expressiveTopAppBarColors
 import com.hpprint.app.ui.component.statustag.StatusTag
 import com.hpprint.app.ui.hp.describeFile
 import com.hpprint.app.ui.hp.HP_PRINT_DOC_MIME_TYPES
+import com.hpprint.app.ui.hp.HP_PRINT_INVOICE_MIME_TYPES
 import com.hpprint.app.ui.hp.formatTimestamp
 import com.hpprint.app.ui.hp.jobStatusColors
 import com.hpprint.app.ui.hp.jobStatusLabel
@@ -77,10 +92,14 @@ import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.utils.overScrollVertical
-import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import com.hpprint.app.ui.util.scrollEndVibration
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import androidx.compose.ui.graphics.Color
+import com.hpprint.app.ui.theme.LocalEnableBlur
+import com.hpprint.app.ui.util.BlurredBar
+import com.hpprint.app.ui.util.rememberBlurBackdrop
+import top.yukonga.miuix.kmp.blur.layerBackdrop
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -94,11 +113,14 @@ fun PrintPager(
     val context = LocalContext.current
 
     val docPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
-        if (uris.isNotEmpty()) {
-            val files = uris.map { uri ->
-                val (kind, title) = describeFile(context, uri)
-                PrintFile(kind.name, uri.toString(), title)
-            }
+        val files = uris.mapNotNull { uri ->
+            val (kind, title) = describeFile(context, uri)
+            kind?.let { PrintFile(it.name, uri.toString(), title) }
+        }
+        if (files.size < uris.size) {
+            Toast.makeText(context, R.string.hp_print_unsupported_file, Toast.LENGTH_SHORT).show()
+        }
+        if (files.isNotEmpty()) {
             navigator.push(Route.PrintSetup(files = files))
         }
     }
@@ -111,16 +133,47 @@ fun PrintPager(
             navigator.push(Route.PrintSetup(files = files))
         }
     }
+    val invoicePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        val files = uris.mapNotNull { uri ->
+            val (kind, title) = describeFile(context, uri)
+            kind?.let { PrintFile(it.name, uri.toString(), title) }
+        }
+        if (files.size < uris.size) {
+            Toast.makeText(context, R.string.hp_print_unsupported_file, Toast.LENGTH_SHORT).show()
+        }
+        if (files.isNotEmpty()) {
+            navigator.push(Route.PrintSetup(files = files))
+        }
+    }
 
+    var renameTarget by remember { mutableStateOf<PrintJob?>(null) }
     val actions = PrintActions(
         onPrintDocuments = {
             docPicker.launch(HP_PRINT_DOC_MIME_TYPES)
         },
         onPrintPhotos = { photoPicker.launch(arrayOf("image/*")) },
         onWebPrint = { navigator.push(Route.WebPrint) },
+        onInvoicePrint = { invoicePicker.launch(HP_PRINT_INVOICE_MIME_TYPES) },
+        onWebArticlePrint = { navigator.push(Route.WebArticle) },
+        onOpenTemplateGallery = { navigator.push(Route.PaperTemplateGallery) },
+        onOpenTemplate = { navigator.push(Route.PaperTemplate(it.key)) },
+        onOpenHistory = { navigator.push(Route.PrintHistory) },
         onCancel = viewModel::cancel,
         onRemove = viewModel::remove,
+        onRename = { renameTarget = it },
     )
+
+    renameTarget?.let { job ->
+        RenameDialog(
+            show = true,
+            initial = job.title,
+            onConfirm = { name ->
+                viewModel.rename(job, name)
+                renameTarget = null
+            },
+            onDismiss = { renameTarget = null },
+        )
+    }
 
     when (LocalUiMode.current) {
         UiMode.Miuix -> PrintMiuix(state, viewModel::printerName, actions, bottomInnerPadding)
@@ -132,8 +185,14 @@ private data class PrintActions(
     val onPrintDocuments: () -> Unit,
     val onPrintPhotos: () -> Unit,
     val onWebPrint: () -> Unit,
+    val onInvoicePrint: () -> Unit,
+    val onWebArticlePrint: () -> Unit,
+    val onOpenTemplateGallery: () -> Unit,
+    val onOpenTemplate: (PaperType) -> Unit,
+    val onOpenHistory: () -> Unit,
     val onCancel: (PrintJob) -> Unit,
     val onRemove: (PrintJob) -> Unit,
+    val onRename: (PrintJob) -> Unit,
 )
 
 @Composable
@@ -144,54 +203,73 @@ private fun PrintMiuix(
     bottomInnerPadding: Dp,
 ) {
     val scrollBehavior = MiuixScrollBehavior()
+    val enableBlur = LocalEnableBlur.current
+    val backdrop = rememberBlurBackdrop(enableBlur)
+    val blurActive = backdrop != null
+    val barColor = if (blurActive) Color.Transparent else MiuixTheme.colorScheme.surface
     Scaffold(
-        topBar = { TopAppBar(title = stringResource(R.string.hp_print_jobs), scrollBehavior = scrollBehavior) },
+        topBar = {
+            BlurredBar(backdrop) {
+                TopAppBar(title = stringResource(R.string.hp_print_jobs), color = barColor, scrollBehavior = scrollBehavior)
+            }
+        },
         popupHost = { },
         contentWindowInsets = WindowInsets.systemBars.add(WindowInsets.displayCutout).only(WindowInsetsSides.Horizontal),
     ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .scrollEndHaptic(HapticFeedbackType.LongPress)
-                .scrollEndVibration()
-                .overScrollVertical()
-                .nestedScroll(scrollBehavior.nestedScrollConnection)
-                .padding(horizontal = 12.dp),
-            contentPadding = innerPadding,
-            overscrollEffect = null,
-        ) {
-            item {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.padding(top = 12.dp),
-                ) {
-                    NewPrintCardMiuix(actions)
-                    JobSectionMiuix(
-                        title = stringResource(R.string.hp_active_jobs),
-                        jobs = state.active,
-                        printerName = printerName,
-                        showCancel = true,
-                        onAction = actions.onCancel,
-                    )
-                    JobSectionMiuix(
-                        title = stringResource(R.string.hp_print_history),
-                        jobs = state.history,
-                        printerName = printerName,
-                        showCancel = false,
-                        onAction = actions.onRemove,
-                    )
-                    if (state.active.isEmpty() && state.history.isEmpty()) {
-                        Card {
-                            BasicComponent(
-                                title = stringResource(R.string.hp_no_jobs),
-                                summary = stringResource(R.string.hp_new_print),
+        Box(modifier = if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .scrollEndVibration()
+                    .overScrollVertical()
+                    .nestedScroll(scrollBehavior.nestedScrollConnection)
+                    .padding(horizontal = 12.dp),
+                contentPadding = innerPadding,
+                overscrollEffect = null,
+            ) {
+                item {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.padding(top = 12.dp),
+                    ) {
+                        NewPrintCardMiuix(actions)
+                        JobSectionMiuix(
+                            title = stringResource(R.string.hp_active_jobs),
+                            jobs = state.active,
+                            printerName = printerName,
+                            showCancel = true,
+                            onAction = actions.onCancel,
+                        )
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            ArrowPreference(
+                                title = stringResource(R.string.hp_print_history),
+                                onClick = actions.onOpenHistory,
                                 startAction = {
-                                    Icon(Icons.Rounded.Image, stringResource(R.string.hp_no_jobs), modifier = Modifier.padding(end = 12.dp))
+                                    Icon(
+                                        Icons.Rounded.History,
+                                        stringResource(R.string.hp_print_history),
+                                        modifier = Modifier.padding(end = 12.dp),
+                                    )
                                 },
                             )
                         }
+                        if (state.active.isEmpty() && state.history.isEmpty()) {
+                            Card {
+                                BasicComponent(
+                                    title = stringResource(R.string.hp_no_jobs),
+                                    summary = stringResource(R.string.hp_new_print),
+                                    startAction = {
+                                        Icon(Icons.Rounded.Image, stringResource(R.string.hp_no_jobs), modifier = Modifier.padding(end = 12.dp))
+                                    },
+                                )
+                            }
+                        }
+                        PrintTemplateCardMiuix(
+                            onOpenGallery = actions.onOpenTemplateGallery,
+                            onOpenTemplate = actions.onOpenTemplate,
+                        )
+                        Spacer(Modifier.height(bottomInnerPadding))
                     }
-                    Spacer(Modifier.height(bottomInnerPadding))
                 }
             }
         }
@@ -219,6 +297,18 @@ private fun NewPrintCardMiuix(actions: PrintActions) {
             startAction = { Icon(Icons.Filled.Language, stringResource(R.string.hp_web_print), modifier = Modifier.padding(end = 12.dp)) },
             onClick = actions.onWebPrint,
         )
+        ArrowPreference(
+            title = stringResource(R.string.hp_invoice_print),
+            summary = stringResource(R.string.hp_invoice_hint),
+            startAction = { Icon(Icons.Rounded.ReceiptLong, stringResource(R.string.hp_invoice_print), modifier = Modifier.padding(end = 12.dp)) },
+            onClick = actions.onInvoicePrint,
+        )
+        ArrowPreference(
+            title = stringResource(R.string.hp_web_article_print),
+            summary = stringResource(R.string.hp_web_article_hint),
+            startAction = { Icon(Icons.Rounded.Article, stringResource(R.string.hp_web_article_print), modifier = Modifier.padding(end = 12.dp)) },
+            onClick = actions.onWebArticlePrint,
+        )
     }
 }
 
@@ -229,6 +319,7 @@ private fun JobSectionMiuix(
     printerName: (String) -> String,
     showCancel: Boolean,
     onAction: (PrintJob) -> Unit,
+    onRename: (PrintJob) -> Unit = {},
 ) {
     if (jobs.isEmpty()) return
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -247,6 +338,16 @@ private fun JobSectionMiuix(
                 },
                 endActions = {
                     StatusTag(label = jobStatusLabel(job.status), backgroundColor = bg, contentColor = fg)
+                    if (!showCancel) {
+                        top.yukonga.miuix.kmp.basic.IconButton(onClick = { onRename(job) }) {
+                            top.yukonga.miuix.kmp.basic.Icon(
+                                Icons.Rounded.Edit,
+                                stringResource(R.string.hp_rename),
+                                modifier = Modifier.size(20.dp),
+                                tint = MiuixTheme.colorScheme.onBackground,
+                            )
+                        }
+                    }
                     top.yukonga.miuix.kmp.basic.IconButton(onClick = { onAction(job) }) {
                         top.yukonga.miuix.kmp.basic.Icon(
                             if (showCancel) Icons.Rounded.Close else Icons.Rounded.Delete,
@@ -312,6 +413,22 @@ private fun PrintMaterial(
                         leadingContent = { Icon(Icons.Filled.Language, stringResource(R.string.hp_web_print)) },
                     )
                 }
+                item {
+                    SegmentedListItem(
+                        onClick = actions.onInvoicePrint,
+                        headlineContent = { Text(stringResource(R.string.hp_invoice_print)) },
+                        supportingContent = { Text(stringResource(R.string.hp_invoice_hint)) },
+                        leadingContent = { Icon(Icons.Rounded.ReceiptLong, stringResource(R.string.hp_invoice_print)) },
+                    )
+                }
+                item {
+                    SegmentedListItem(
+                        onClick = actions.onWebArticlePrint,
+                        headlineContent = { Text(stringResource(R.string.hp_web_article_print)) },
+                        supportingContent = { Text(stringResource(R.string.hp_web_article_hint)) },
+                        leadingContent = { Icon(Icons.Rounded.Article, stringResource(R.string.hp_web_article_print)) },
+                    )
+                }
             }
 
             JobSectionMaterial(
@@ -321,13 +438,17 @@ private fun PrintMaterial(
                 showCancel = true,
                 onAction = actions.onCancel,
             )
-            JobSectionMaterial(
-                title = stringResource(R.string.hp_print_history),
-                jobs = state.history,
-                printerName = printerName,
-                showCancel = false,
-                onAction = actions.onRemove,
-            )
+            SegmentedColumn(modifier = Modifier.fillMaxWidth()) {
+                item {
+                    SegmentedListItem(
+                        onClick = actions.onOpenHistory,
+                        headlineContent = { Text(stringResource(R.string.hp_print_history)) },
+                        leadingContent = {
+                            Icon(Icons.Rounded.History, stringResource(R.string.hp_print_history))
+                        },
+                    )
+                }
+            }
 
             if (state.active.isEmpty() && state.history.isEmpty()) {
                 SegmentedColumn(modifier = Modifier.fillMaxWidth(), title = stringResource(R.string.hp_print_jobs)) {
@@ -339,6 +460,11 @@ private fun PrintMaterial(
                     }
                 }
             }
+
+            PrintTemplateCardMaterial(
+                onOpenGallery = actions.onOpenTemplateGallery,
+                onOpenTemplate = actions.onOpenTemplate,
+            )
 
             Spacer(
                 Modifier.height(
@@ -356,6 +482,7 @@ private fun JobSectionMaterial(
     printerName: (String) -> String,
     showCancel: Boolean,
     onAction: (PrintJob) -> Unit,
+    onRename: (PrintJob) -> Unit = {},
 ) {
     if (jobs.isEmpty()) return
     SegmentedColumn(modifier = Modifier.fillMaxWidth(), title = title) {
@@ -369,6 +496,15 @@ private fun JobSectionMaterial(
                     trailingContent = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             StatusTag(label = jobStatusLabel(job.status), backgroundColor = bg, contentColor = fg)
+                            if (!showCancel) {
+                                IconButton(onClick = { onRename(job) }) {
+                                    Icon(
+                                        Icons.Rounded.Edit,
+                                        stringResource(R.string.hp_rename),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
                             IconButton(onClick = { onAction(job) }) {
                                 Icon(
                                     if (showCancel) Icons.Rounded.Close else Icons.Rounded.Delete,

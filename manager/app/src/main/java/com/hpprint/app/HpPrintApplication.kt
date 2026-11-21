@@ -12,6 +12,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
 import com.hpprint.app.data.repository.SettingsRepositoryImpl
+import com.hpprint.app.data.scan.core.NativeScanEngine
 import com.hpprint.app.ui.viewmodel.SuperUserViewModel
 import okhttp3.Cache
 import okhttp3.OkHttpClient
@@ -48,6 +49,9 @@ class HpPrintApplication : Application(), ViewModelStoreOwner {
     override fun onCreate() {
         super.onCreate()
         hpApp = this
+
+        // 扫描/证件矫正的原生模型（arm64 可用，其他 ABI 自动回退 Kotlin）
+        NativeScanEngine.init(this)
 
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
             override fun onActivityResumed(activity: Activity) {

@@ -8,12 +8,14 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.systemBars
@@ -40,6 +42,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigationevent.NavigationEventInfo
@@ -63,16 +66,28 @@ import com.hpprint.app.ui.screen.colorpalette.ColorPaletteScreen
 import com.hpprint.app.ui.screen.dashboard.DashboardPager
 import com.hpprint.app.ui.screen.manualduplex.ManualDuplexConfirmScreen
 import com.hpprint.app.ui.screen.print.PrintPager
+import com.hpprint.app.ui.screen.print.PrintHistoryScreen
+import com.hpprint.app.ui.screen.scan.ScanHistoryScreen
 import com.hpprint.app.ui.screen.preview.PrintPreviewScreen
 import com.hpprint.app.ui.screen.printsetup.PrintSetupScreen
 import com.hpprint.app.ui.screen.printer.AddPrinterScreen
 import com.hpprint.app.ui.screen.printer.PrinterDetailScreen
 import com.hpprint.app.ui.screen.scan.ScanPager
+import com.hpprint.app.ui.screen.scan.ScanCameraScreen
+import com.hpprint.app.ui.screen.scan.ScanDocScreen
+import com.hpprint.app.ui.screen.scan.ScanOcrScreen
 import com.hpprint.app.ui.screen.scan.ScanPreviewScreen
 import com.hpprint.app.ui.screen.settings.SettingPager
 import com.hpprint.app.ui.screen.setup.ProvisionManager
 import com.hpprint.app.ui.screen.setup.SetupScreen
 import com.hpprint.app.ui.screen.webprint.WebPrintScreen
+import com.hpprint.app.ui.screen.webarticle.WebArticleScreen
+import com.hpprint.app.ui.screen.scansettings.ScanSettingsScreen
+import com.hpprint.app.ui.screen.idphoto.IdPhotoScreen
+import com.hpprint.app.ui.screen.idcardcopy.IdCardCopyScreen
+import com.hpprint.app.ui.screen.idprint.IdPrintScreen
+import com.hpprint.app.ui.screen.papertemplate.PaperTemplateGalleryScreen
+import com.hpprint.app.ui.screen.papertemplate.PaperTemplatePager
 import com.hpprint.app.ui.theme.HpPrintTheme
 import com.hpprint.app.ui.theme.LocalColorMode
 import com.hpprint.app.ui.theme.LocalEnableBlur
@@ -183,10 +198,33 @@ class MainActivity : ComponentActivity() {
                                 PrintSetupScreen(key.files, key.webUrl)
                             }
                             entry<Route.WebPrint>(swipeDismiss = swipeDismiss) { WebPrintScreen() }
+                            entry<Route.PrintHistory>(swipeDismiss = swipeDismiss) { PrintHistoryScreen() }
+                            entry<Route.ScanHistory>(swipeDismiss = swipeDismiss) { ScanHistoryScreen() }
+                            entry<Route.WebArticle>(swipeDismiss = swipeDismiss) { WebArticleScreen() }
+                            entry<Route.ScanSettings>(swipeDismiss = swipeDismiss) { ScanSettingsScreen() }
+                            entry<Route.IdPhoto>(swipeDismiss = swipeDismiss) { IdPhotoScreen() }
+                            entry<Route.IdCardCopy>(swipeDismiss = swipeDismiss) { IdCardCopyScreen() }
+                            entry<Route.IdPrint>(swipeDismiss = swipeDismiss) { IdPrintScreen() }
+                            entry<Route.ScanCamera>(swipeDismiss = swipeDismiss) { key -> ScanCameraScreen(key.docId) }
+                            entry<Route.ScanDoc>(swipeDismiss = swipeDismiss) { key -> ScanDocScreen(key.docId) }
+                            entry<Route.ScanOcr>(swipeDismiss = swipeDismiss) { key -> ScanOcrScreen(key.docId) }
+                            entry<Route.PaperTemplateGallery>(swipeDismiss = swipeDismiss) {
+                                PaperTemplateGalleryScreen(
+                                    onSelect = { navigator.push(Route.PaperTemplate(it.key)) },
+                                    onBack = { navigator.pop() },
+                                )
+                            }
+                            entry<Route.PaperTemplate>(swipeDismiss = swipeDismiss) { key ->
+                                PaperTemplatePager(
+                                    navigator = navigator,
+                                    bottomInnerPadding = 24.dp,
+                                    initialTypeKey = key.typeKey,
+                                )
+                            }
                             entry<Route.PrintPreview>(swipeDismiss = swipeDismiss) { key ->
                                 PrintPreviewScreen(key.files, key.webUrl)
                             }
-                            entry<Route.ScanPreview>(swipeDismiss = swipeDismiss) { key -> ScanPreviewScreen(key.imageUri) }
+                            entry<Route.ScanPreview>(swipeDismiss = swipeDismiss) { key -> ScanPreviewScreen(key.imageUri, key.autoRectify) }
                             entry<Route.ManualDuplexConfirm>(swipeDismiss = swipeDismiss) { key ->
                                 ManualDuplexConfirmScreen(key.title)
                             }
@@ -264,7 +302,7 @@ fun MainScreen(
     MainScreenBackHandler(mainPagerState, navController)
 
     CompositionLocalProvider(
-        LocalMainPagerState provides mainPagerState
+        LocalMainPagerState provides mainPagerState,
     ) {
         val contentReady = rememberContentReady()
         val pagerContent = @Composable { bottomInnerPadding: Dp ->
@@ -314,43 +352,42 @@ fun MainScreen(
                 UiMode.Material -> androidx.compose.material3.Scaffold(
                     containerColor = MaterialTheme.colorScheme.surfaceContainer
                 ) {
-                    Row {
-                        SideRail(navigationBadge)
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .consumeWindowInsets(startInsets)
-                        ) {
-                            pagerContent(navBarBottomPadding)
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        Row(modifier = Modifier.weight(1f)) {
+                            SideRail(navigationBadge)
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .consumeWindowInsets(startInsets)
+                            ) {
+                                pagerContent(navBarBottomPadding)
+                            }
                         }
                     }
                 }
 
                 UiMode.Miuix -> Scaffold { _ ->
-                    Row {
-                        SideRail(navigationBadge)
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .consumeWindowInsets(startInsets)
-                        ) {
-                            pagerContent(navBarBottomPadding)
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        Row(modifier = Modifier.weight(1f)) {
+                            SideRail(navigationBadge)
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .consumeWindowInsets(startInsets)
+                            ) {
+                                pagerContent(navBarBottomPadding)
+                            }
                         }
                     }
                 }
             }
         } else {
             val bottomBar = @Composable {
-                Box(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    BottomBar(
-                        blurBackdrop = blurBackdrop,
-                        backdrop = backdrop,
-                        navigationBadge = navigationBadge,
-                        modifier = Modifier.align(Alignment.BottomCenter),
-                    )
-                }
+                BottomBar(
+                    blurBackdrop = blurBackdrop,
+                    backdrop = backdrop,
+                    navigationBadge = navigationBadge,
+                )
             }
 
             when (uiMode) {
@@ -390,3 +427,4 @@ private fun MainScreenBackHandler(
         }
     )
 }
+

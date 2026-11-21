@@ -86,7 +86,6 @@ import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
-import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import com.hpprint.app.ui.util.scrollEndVibration
 
 /**
@@ -126,7 +125,6 @@ fun AppProfileScreenMiuix(
                 modifier = Modifier
                     .fillMaxHeight()
                     .padding(top = 16.dp)
-                    .scrollEndHaptic(HapticFeedbackType.LongPress)
                     .scrollEndVibration()
                     .overScrollVertical()
                     .nestedScroll(scrollBehavior.nestedScrollConnection),

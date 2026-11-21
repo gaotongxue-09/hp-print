@@ -10,6 +10,7 @@ import com.hpprint.app.ui.UiMode
 import com.hpprint.app.ui.navigation3.Navigator
 import com.hpprint.app.ui.navigation3.Route
 import com.hpprint.app.ui.viewmodel.SettingsViewModel
+import com.hpprint.app.ui.util.rememberUpdateChecker
 
 @Composable
 fun SettingPager(
@@ -20,6 +21,8 @@ fun SettingPager(
     val viewModel = viewModel<SettingsViewModel>()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
+    val checkUpdate = rememberUpdateChecker()
+
     val actions = SettingsScreenActions(
         onOpenPrinters = { navigator.push(Route.AddPrinter) },
         onOpenTheme = { navigator.push(Route.ColorPalette) },
@@ -27,6 +30,8 @@ fun SettingPager(
             viewModel.setUiMode(if (index == 0) UiMode.Miuix.value else UiMode.Material.value)
         },
         onOpenAbout = { navigator.push(Route.About) },
+        onCheckUpdate = { checkUpdate(true) },
+        onSetCheckUpdate = viewModel::setCheckUpdate,
     )
 
     when (LocalUiMode.current) {

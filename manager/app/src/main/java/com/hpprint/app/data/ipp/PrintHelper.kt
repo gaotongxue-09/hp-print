@@ -75,6 +75,40 @@ object PrintHelper {
         return out.toByteArray()
     }
 
+    /** 居中裁切到目标宽高比并缩放到目标像素尺寸（证件照/照片定尺寸打印用）。 */
+    fun cropCover(src: Bitmap, targetW: Int, targetH: Int): Bitmap {
+        val srcAspect = src.width.toFloat() / src.height
+        val targetAspect = targetW.toFloat() / targetH
+        var cropW = src.width.toFloat()
+        var cropH = src.height.toFloat()
+        if (srcAspect > targetAspect) {
+            cropW = src.height * targetAspect
+        } else if (srcAspect < targetAspect) {
+            cropH = src.width / targetAspect
+        }
+        val left = ((src.width - cropW) / 2f).toInt().coerceIn(0, src.width - 1)
+        val top = ((src.height - cropH) / 2f).toInt().coerceIn(0, src.height - 1)
+        val w = cropW.toInt().coerceIn(1, src.width - left)
+        val h = cropH.toInt().coerceIn(1, src.height - top)
+        val cropped = Bitmap.createBitmap(src, left, top, w, h)
+        if (cropped.width == targetW && cropped.height == targetH) return cropped
+        return Bitmap.createScaledBitmap(cropped, targetW, targetH, true)
+    }
+
+    /** 生成精确页面尺寸（点）的单页 PDF，图片铺满整页（照片/证件的 1:1 物理打印）。 */
+    fun bitmapToPdfBytesExact(bitmap: Bitmap, pageW: Int, pageH: Int): ByteArray {
+        val doc = PdfDocument()
+        val info = PdfDocument.PageInfo.Builder(pageW, pageH, 1).create()
+        val page = doc.startPage(info)
+        page.canvas.drawColor(android.graphics.Color.WHITE)
+        page.canvas.drawBitmap(bitmap, null, RectF(0f, 0f, pageW.toFloat(), pageH.toFloat()), Paint(Paint.FILTER_BITMAP_FLAG))
+        doc.finishPage(page)
+        val out = ByteArrayOutputStream()
+        doc.writeTo(out)
+        doc.close()
+        return out.toByteArray()
+    }
+
     private fun drawCentered(
         canvas: Canvas, bitmap: Bitmap, pageW: Int, pageH: Int,
     ) {

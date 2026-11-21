@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
@@ -89,10 +90,12 @@ fun ConfirmDialogMiuix(
                 content = {
                     val dismissState = LocalDismissState.current
                     visuals.content?.let { content ->
-                        when {
-                            visuals.isMarkdown -> MarkdownContent(content = content, isMarkdown = true)
-                            visuals.isHtml -> MarkdownContent(content = content, isMarkdown = false)
-                            else -> Text(text = content)
+                        Box(Modifier.heightIn(max = 320.dp)) {
+                            when {
+                                visuals.isMarkdown -> MarkdownContent(content = content, isMarkdown = true)
+                                visuals.isHtml -> MarkdownContent(content = content, isMarkdown = false)
+                                else -> Text(text = content)
+                            }
                         }
                     }
                     Row(

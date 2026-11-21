@@ -50,6 +50,10 @@ class PrintJobViewModel(
         viewModelScope.launch { jobRepo.cancel(job.id) }
     }
 
+    fun rename(job: PrintJob, title: String) {
+        viewModelScope.launch { jobRepo.rename(job.id, title) }
+    }
+
     fun remove(job: PrintJob) {
         viewModelScope.launch { jobRepo.remove(job.id) }
     }

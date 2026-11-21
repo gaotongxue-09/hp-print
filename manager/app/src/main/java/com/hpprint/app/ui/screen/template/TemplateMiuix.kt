@@ -96,7 +96,6 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
 import top.yukonga.miuix.kmp.utils.PressFeedbackType
 import top.yukonga.miuix.kmp.utils.overScrollVertical
-import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import com.hpprint.app.ui.util.scrollEndVibration
 
 /**
@@ -243,7 +242,6 @@ fun AppProfileTemplateScreenMiuix(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxHeight()
-                        .scrollEndHaptic(HapticFeedbackType.LongPress)
                         .scrollEndVibration()
                         .overScrollVertical()
                         .nestedScroll(nestedScrollConnection)

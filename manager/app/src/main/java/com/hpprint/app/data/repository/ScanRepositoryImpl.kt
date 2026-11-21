@@ -32,6 +32,12 @@ class ScanRepositoryImpl private constructor() : ScanRepository {
         return scan
     }
 
+    override suspend fun rename(id: String, title: String) {
+        val name = title.trim()
+        if (name.isEmpty()) return
+        commit(_scans.value.map { if (it.id == id) it.copy(title = name) else it })
+    }
+
     override suspend fun delete(id: String) {
         commit(_scans.value.filterNot { it.id == id })
     }

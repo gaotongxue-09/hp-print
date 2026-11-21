@@ -88,6 +88,75 @@ object HtmlRenderer {
         return pdfFile
     }
 
+    /**
+     * 远程网页 → 临时 PDF：离屏 [WebView] 加载 URL 后走系统 PrintDocumentAdapter 生成 PDF，
+     * 供网页打印的「预览」与「网络文章打印」复用。WEB 无本地源文件，故不走 [toPdfFile] 的读字节分支。
+     */
+    suspend fun toPdfFileFromUrl(context: Context, url: String): File {
+        val pdfFile = File(context.cacheDir, "web_print_${System.currentTimeMillis()}.pdf")
+
+        withContext(Dispatchers.Main.immediate) {
+            val webView = WebView(context)
+            try {
+                webView.settings.apply {
+                    javaScriptEnabled = true
+                    loadWithOverviewMode = true
+                    useWideViewPort = true
+                    setSupportZoom(false)
+                    domStorageEnabled = true
+                }
+                webView.measure(
+                    android.view.View.MeasureSpec.makeMeasureSpec(
+                        1024, android.view.View.MeasureSpec.EXACTLY),
+                    android.view.View.MeasureSpec.makeMeasureSpec(
+                        8000, android.view.View.MeasureSpec.EXACTLY)
+                )
+                webView.layout(0, 0, 1024, webView.measuredHeight)
+
+                awaitUrlPage(webView, url)
+
+                val adapter = webView.createPrintDocumentAdapter("web-document")
+                val attrs = PrintAttributes.Builder()
+                    .setMediaSize(PrintAttributes.MediaSize.ISO_A4)
+                    .setResolution(PrintAttributes.Resolution("pdf", "pdf", 300, 300))
+                    .setColorMode(PrintAttributes.COLOR_MODE_COLOR)
+                    .setMinMargins(PrintAttributes.Margins(36, 36, 36, 36))
+                    .build()
+
+                awaitLayout(adapter, attrs)
+
+                val pfd = ParcelFileDescriptor.open(
+                    pdfFile,
+                    ParcelFileDescriptor.MODE_CREATE or
+                        ParcelFileDescriptor.MODE_READ_WRITE
+                )
+                try {
+                    awaitWrite(adapter, pfd)
+                } finally {
+                    try { pfd.close() } catch (_: Exception) {}
+                }
+            } finally {
+                webView.destroy()
+            }
+        }
+
+        if (!pdfFile.exists() || pdfFile.length() < 128)
+            throw IllegalStateException("网页转 PDF 失败，无法预览该网页")
+        return pdfFile
+    }
+
+    private suspend fun awaitUrlPage(webView: WebView, url: String) {
+        suspendCancellableCoroutine<Unit> { cont ->
+            webView.webViewClient = object : WebViewClient() {
+                override fun onPageFinished(view: WebView?, url: String?) {
+                    if (cont.isActive) cont.resume(Unit)
+                }
+            }
+            webView.loadUrl(url)
+        }
+        delay(500) // 给 Chromium 排版与远程资源加载留一拍
+    }
+
     private suspend fun awaitPage(webView: WebView, base: Uri, html: String) {
         suspendCancellableCoroutine<Unit> { cont ->
             webView.webViewClient = object : WebViewClient() {

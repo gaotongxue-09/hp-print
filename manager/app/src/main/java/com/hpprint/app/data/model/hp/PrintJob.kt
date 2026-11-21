@@ -4,7 +4,7 @@ import androidx.compose.runtime.Immutable
 import kotlinx.serialization.Serializable
 
 @Serializable
-enum class PrintJobKind { IMAGE, PDF, TEXT, HTML, WEB, DOCX, XLSX, PPTX }
+enum class PrintJobKind { IMAGE, PDF, TEXT, HTML, WEB, DOCX, XLSX, PPTX, OFD }
 
 @Serializable
 enum class PrintJobStatus { QUEUED, PRINTING, COMPLETED, FAILED, CANCELLED }

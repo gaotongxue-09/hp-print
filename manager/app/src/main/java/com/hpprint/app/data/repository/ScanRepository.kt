@@ -6,5 +6,6 @@ import com.hpprint.app.data.model.hp.Scan
 interface ScanRepository {
     val scans: StateFlow<List<Scan>>
     suspend fun save(title: String, imageUri: String): Scan
+    suspend fun rename(id: String, title: String)
     suspend fun delete(id: String)
 }

@@ -20,6 +20,7 @@ import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.DisplaySettings
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,9 +47,9 @@ import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
+import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
-import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import com.hpprint.app.ui.util.scrollEndVibration
 
 @Composable
@@ -82,7 +83,6 @@ fun SettingPagerMiuix(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxHeight()
-                    .scrollEndHaptic(HapticFeedbackType.LongPress)
                     .scrollEndVibration()
                     .overScrollVertical()
                     .nestedScroll(scrollBehavior.nestedScrollConnection)
@@ -144,6 +144,12 @@ fun SettingPagerMiuix(
                             },
                             onClick = actions.onOpenTheme
                         )
+                        SwitchPreference(
+                            title = stringResource(id = R.string.auto_check_update),
+                            summary = stringResource(id = R.string.auto_check_update_summary),
+                            checked = uiState.checkUpdate,
+                            onCheckedChange = actions.onSetCheckUpdate,
+                        )
                     }
 
                     Card(
@@ -162,6 +168,20 @@ fun SettingPagerMiuix(
                                 )
                             },
                             onClick = { showSendLog = true },
+                        )
+                        val checkUpdate = stringResource(id = R.string.check_update)
+                        ArrowPreference(
+                            title = checkUpdate,
+                            summary = stringResource(id = R.string.check_update_summary),
+                            startAction = {
+                                Icon(
+                                    Icons.Rounded.SystemUpdate,
+                                    modifier = Modifier.padding(end = 6.dp),
+                                    contentDescription = checkUpdate,
+                                    tint = colorScheme.onBackground
+                                )
+                            },
+                            onClick = actions.onCheckUpdate,
                         )
                         val about = stringResource(id = R.string.about)
                         ArrowPreference(

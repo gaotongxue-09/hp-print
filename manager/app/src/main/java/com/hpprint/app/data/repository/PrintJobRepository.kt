@@ -11,6 +11,7 @@ interface PrintJobRepository {
     suspend fun enqueue(job: PrintJob): PrintJob
     suspend fun updateStatus(id: String, status: PrintJobStatus)
     suspend fun cancel(id: String)
+    suspend fun rename(id: String, title: String)
     suspend fun remove(id: String)
     suspend fun reconcileSystemJobs(systemJobs: List<SystemPrintJob>)
 }

@@ -9,10 +9,13 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import com.hpprint.app.data.ipp.EwsInk
 import com.hpprint.app.data.ipp.PrinterIpp
+import com.hpprint.app.data.ipp.SnmpInk
 import com.hpprint.app.data.model.hp.PrintJobStatus
 import com.hpprint.app.data.model.hp.PrinterProbe
 import com.hpprint.app.data.model.hp.PrinterStatus
+import com.hpprint.app.data.model.hp.SupplyInfo
 import com.hpprint.app.data.model.hp.SystemPrintJob
 import com.hpprint.app.data.repository.PrintJobRepositoryImpl
 import com.hpprint.app.data.repository.PrinterRepositoryImpl
@@ -33,6 +36,10 @@ object StatusMonitor {
 
     // 每台打印机连续探测失败的次数，用于「忙碌容忍」：忙时偶发一次失败不判离线。
     private val consecutiveFailures = ConcurrentHashMap<String, Int>()
+
+    // 墨量兜底缓存：EWS/SNMP 比 IPP 重，避免每 5 秒轮询都打打印机。key=ip，value=(时间戳, 墨量列表)。
+    private val suppliesCache = ConcurrentHashMap<String, Pair<Long, List<SupplyInfo>>>()
+    private const val SUPPLIES_CACHE_TTL_MS = 30_000L
 
     @Volatile
     private var started = false
@@ -57,10 +64,10 @@ object StatusMonitor {
     suspend fun refreshPrinters() {
         val repo = PrinterRepositoryImpl.getInstance()
         repo.printers.value.forEach { p ->
-            val probe = PrinterIpp.probe(p.ip, p.port, scheme = p.scheme, timeoutMs = 5000)
-            if (probe.reachable) {
+            val raw = PrinterIpp.probe(p.ip, p.port, scheme = p.scheme, timeoutMs = 5000)
+            if (raw.reachable) {
                 consecutiveFailures.remove(p.id)
-                repo.updateProbe(p.id, probe)
+                repo.updateProbe(p.id, enrichSupplies(p.ip, raw))
             } else {
                 val count = (consecutiveFailures[p.id] ?: 0) + 1
                 consecutiveFailures[p.id] = count
@@ -70,6 +77,23 @@ object StatusMonitor {
                 }
             }
         }
+    }
+
+    /**
+     * IPP 已返回耗材（marker-levels）则直接用；否则回退 EWS REST → SNMP 读真实墨量。
+     * 结果带 30 秒缓存，避免轮询频繁打打印机；读不到就保持原样（空耗材）。
+     */
+    private fun enrichSupplies(ip: String, probe: PrinterProbe): PrinterProbe {
+        if (probe.supplies.isNotEmpty()) return probe
+        val now = System.currentTimeMillis()
+        suppliesCache[ip]?.let { (ts, supplies) ->
+            if (now - ts < SUPPLIES_CACHE_TTL_MS) {
+                return if (supplies.isEmpty()) probe else probe.copy(supplies = supplies)
+            }
+        }
+        val supplies = EwsInk.query(ip).ifEmpty { SnmpInk.query(ip) }
+        suppliesCache[ip] = now to supplies
+        return if (supplies.isEmpty()) probe else probe.copy(supplies = supplies)
     }
 
     suspend fun refreshJobs() {

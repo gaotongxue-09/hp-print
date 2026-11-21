@@ -55,7 +55,6 @@ import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.icon.extended.Share
 import top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
-import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import com.hpprint.app.ui.util.scrollEndVibration
 
 /**
@@ -129,7 +128,6 @@ fun FlashScreenMiuix(
             Column(
                 modifier = Modifier
                     .fillMaxSize(1f)
-                    .scrollEndHaptic(HapticFeedbackType.LongPress)
                     .scrollEndVibration()
                     .padding(
                         start = innerPadding.calculateStartPadding(layoutDirection),

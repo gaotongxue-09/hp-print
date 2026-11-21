@@ -1,6 +1,7 @@
 package com.hpprint.app.ui.component.dialog
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
@@ -60,10 +61,12 @@ fun ConfirmDialogMaterial(
             title = { Text(visuals.title) },
             text = visuals.content?.let { content ->
                 {
-                    when {
-                        visuals.isMarkdown -> MarkdownContent(content = content, isMarkdown = true)
-                        visuals.isHtml -> MarkdownContent(content = content, isMarkdown = false)
-                        else -> Text(text = content)
+                    Box(Modifier.heightIn(max = 320.dp)) {
+                        when {
+                            visuals.isMarkdown -> MarkdownContent(content = content, isMarkdown = true)
+                            visuals.isHtml -> MarkdownContent(content = content, isMarkdown = false)
+                            else -> Text(text = content)
+                        }
                     }
                 }
             },

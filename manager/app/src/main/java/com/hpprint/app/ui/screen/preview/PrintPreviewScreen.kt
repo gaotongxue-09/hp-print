@@ -48,6 +48,8 @@ import kotlinx.coroutines.withContext
 import com.hpprint.app.R
 import com.hpprint.app.data.render.DocumentLoader
 import com.hpprint.app.data.render.DocumentPages
+import com.hpprint.app.data.render.HtmlRenderer
+import com.hpprint.app.data.render.OfdRenderer
 import com.hpprint.app.data.model.hp.PrintJobKind
 import com.hpprint.app.ui.LocalUiMode
 import com.hpprint.app.ui.UiMode
@@ -55,6 +57,11 @@ import com.hpprint.app.ui.component.material.ExpressiveScaffold
 import com.hpprint.app.ui.component.material.SegmentedColumn
 import com.hpprint.app.ui.component.material.TopBarBackButton
 import com.hpprint.app.ui.component.material.expressiveTopAppBarColors
+import com.hpprint.app.ui.theme.LocalEnableBlur
+import com.hpprint.app.ui.util.BlurredBar
+import com.hpprint.app.ui.util.rememberBlurBackdrop
+import androidx.compose.ui.graphics.Color
+import top.yukonga.miuix.kmp.blur.layerBackdrop
 import com.hpprint.app.ui.navigation3.LocalNavigator
 import com.hpprint.app.ui.navigation3.PrintFile
 import top.yukonga.miuix.kmp.basic.Card
@@ -96,22 +103,30 @@ fun PrintPreviewScreen(files: List<PrintFile>, webUrl: String) {
 
 @Composable
 private fun PrintPreviewMiuix(previews: List<PreviewEntry>, onBack: () -> Unit) {
+    val enableBlur = LocalEnableBlur.current
+    val backdrop = rememberBlurBackdrop(enableBlur)
+    val blurActive = backdrop != null
+    val barColor = if (blurActive) Color.Transparent else MiuixTheme.colorScheme.surface
     Scaffold(
         topBar = {
-            SmallTopAppBar(
-                title = stringResource(R.string.hp_preview),
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(MiuixIcons.Back, null, tint = MiuixTheme.colorScheme.onBackground)
-                    }
-                },
-            )
+            BlurredBar(backdrop) {
+                SmallTopAppBar(
+                    title = stringResource(R.string.hp_preview),
+                    color = barColor,
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(MiuixIcons.Back, null, tint = MiuixTheme.colorScheme.onBackground)
+                        }
+                    },
+                )
+            }
         },
         popupHost = { },
         contentWindowInsets = WindowInsets.systemBars.add(WindowInsets.displayCutout).only(WindowInsetsSides.Horizontal),
     ) { innerPadding ->
         Column(
             modifier = Modifier
+                .then(if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier)
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
@@ -251,12 +266,13 @@ private suspend fun loadPreview(context: Context, file: PrintFile, webUrl: Strin
     return when (kind) {
         PrintJobKind.IMAGE -> renderImage(context, file.sourceUri)
         PrintJobKind.PDF -> renderPdf(context, file.sourceUri)
-        PrintJobKind.WEB -> Preview.Url(webUrl.ifBlank { file.sourceUri })
+        PrintJobKind.WEB -> renderWeb(context, webUrl.ifBlank { file.sourceUri })
         PrintJobKind.TEXT -> renderText(context, file.sourceUri, webUrl)
         PrintJobKind.HTML -> renderOfficePreview(context, file, "text/html")
         PrintJobKind.DOCX -> renderOfficePreview(context, file, null)
         PrintJobKind.XLSX -> renderOfficePreview(context, file, null)
         PrintJobKind.PPTX -> renderOfficePreview(context, file, null)
+        PrintJobKind.OFD -> renderOfdPreview(context, file.sourceUri)
     }
 }
 
@@ -312,6 +328,14 @@ private fun renderText(context: Context, uri: String, webUrl: String): Preview {
     }
 }
 
+/** 网页打印预览：离屏 WebView 把 URL 渲染成 PDF，再逐页位图预览（预览即所得）。 */
+private suspend fun renderWeb(context: Context, url: String): Preview =
+    withContext(Dispatchers.IO) {
+        val pdf = runCatching { HtmlRenderer.toPdfFileFromUrl(context, url) }.getOrNull()
+        if (pdf == null) Preview.Unavailable
+        else renderPdf(context, Uri.fromFile(pdf).toString())
+    }
+
 /** Office/HTML 统一走 DocumentLoader 低 dpi 原生渲染，逐页位图作为预览（预览即所得）。 */
 private suspend fun renderOfficePreview(context: Context, file: PrintFile, mime: String?): Preview =
     withContext(Dispatchers.IO) {
@@ -324,6 +348,19 @@ private suspend fun renderOfficePreview(context: Context, file: PrintFile, mime:
                 runCatching { pages.close() }
             }
         } ?: Preview.Unavailable
+    }
+
+/** OFD（电子发票）预览：先渲染成 PDF，再逐页位图预览。 */
+private suspend fun renderOfdPreview(context: Context, uri: String): Preview =
+    withContext(Dispatchers.IO) {
+        val pdfBytes = runCatching { OfdRenderer.toPdfBytes(context, uri) }.getOrNull()
+        if (pdfBytes == null) {
+            Preview.Unavailable
+        } else {
+            val temp = java.io.File.createTempFile("hp_ofd_preview", ".pdf", context.cacheDir)
+            runCatching { temp.writeBytes(pdfBytes) }
+            renderPdf(context, Uri.fromFile(temp).toString())
+        }
     }
 
 private fun renderPagesPreview(pages: DocumentPages): Preview {

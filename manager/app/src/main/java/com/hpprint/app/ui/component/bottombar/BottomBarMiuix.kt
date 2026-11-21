@@ -2,9 +2,11 @@ package com.hpprint.app.ui.component.bottombar
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -13,6 +15,7 @@ import androidx.compose.material.icons.rounded.DocumentScanner
 import androidx.compose.material.icons.rounded.Print
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -84,12 +87,17 @@ fun BottomBarMiuix(
     } else {
         val bottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
             .let { inset -> if (inset != 0.dp) 8.dp + inset else 28.dp }
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 28.dp, end = 28.dp, bottom = bottomPadding),
+            contentAlignment = Alignment.Center,
+        ) {
         FloatingBottomBar(
             modifier = modifier
                 .pointerInput(Unit) {
                     detectTapGestures { }
-                }
-                .padding(start = 28.dp, end = 28.dp, bottom = bottomPadding),
+                },
             selectedIndex = mainState.selectedPage,
             onSelected = { mainState.animateToPage(it) },
             backdrop = backdrop,
@@ -128,6 +136,7 @@ fun BottomBarMiuix(
                     )
                 }
             }
+        }
         }
     }
 }

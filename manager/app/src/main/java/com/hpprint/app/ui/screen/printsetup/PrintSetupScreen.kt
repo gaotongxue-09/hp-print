@@ -51,6 +51,11 @@ import com.hpprint.app.R
 import com.hpprint.app.data.model.hp.PrintJobKind
 import com.hpprint.app.ui.LocalUiMode
 import com.hpprint.app.ui.UiMode
+import com.hpprint.app.ui.theme.LocalEnableBlur
+import com.hpprint.app.ui.util.BlurredBar
+import com.hpprint.app.ui.util.rememberBlurBackdrop
+import androidx.compose.ui.graphics.Color
+import top.yukonga.miuix.kmp.blur.layerBackdrop
 import com.hpprint.app.ui.component.material.ExpressiveScaffold
 import com.hpprint.app.ui.component.material.SegmentedColumn
 import com.hpprint.app.ui.component.material.SegmentedDropdownItem
@@ -68,6 +73,7 @@ import com.hpprint.app.ui.viewmodel.DUPLEX_MODES
 import com.hpprint.app.ui.viewmodel.ORIENTATION_OPTIONS
 import com.hpprint.app.ui.viewmodel.PAPER_SIZES
 import com.hpprint.app.ui.viewmodel.PAGE_RANGE_MODES
+import com.hpprint.app.ui.viewmodel.PHOTO_SIZES
 import com.hpprint.app.ui.viewmodel.QUALITY_OPTIONS
 import com.hpprint.app.ui.viewmodel.PrintSetupViewModel
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
@@ -119,6 +125,23 @@ private fun fileTitle(file: PrintFile): String =
     file.title.ifBlank { file.sourceUri.substringAfterLast('/').ifBlank { "Document" } }
 
 @Composable
+private fun photoSizeLabel(key: String): String = when (key) {
+    "3x5" -> stringResource(R.string.hp_photo_size_3x5)
+    "4x6" -> stringResource(R.string.hp_photo_size_4x6)
+    "5x7" -> stringResource(R.string.hp_photo_size_5x7)
+    "1inch" -> stringResource(R.string.hp_photo_size_1inch)
+    "small1" -> stringResource(R.string.hp_photo_size_small1)
+    "big1" -> stringResource(R.string.hp_photo_size_big1)
+    "2inch" -> stringResource(R.string.hp_photo_size_2inch)
+    "small2" -> stringResource(R.string.hp_photo_size_small2)
+    "idcard" -> stringResource(R.string.hp_photo_size_idcard)
+    else -> stringResource(R.string.hp_photo_size_original)
+}
+
+@Composable
+private fun photoSizeLabels(): List<String> = PHOTO_SIZES.map { photoSizeLabel(it) }
+
+@Composable
 private fun PrintSetupMiuix(
     state: com.hpprint.app.ui.viewmodel.PrintSetupUiState,
     files: List<PrintFile>,
@@ -147,22 +170,30 @@ private fun PrintSetupMiuix(
         stringResource(R.string.hp_page_range_all),
         stringResource(R.string.hp_page_range_custom),
     )
+    val enableBlur = LocalEnableBlur.current
+    val backdrop = rememberBlurBackdrop(enableBlur)
+    val blurActive = backdrop != null
+    val barColor = if (blurActive) Color.Transparent else MiuixTheme.colorScheme.surface
     Scaffold(
         topBar = {
-            SmallTopAppBar(
-                title = stringResource(R.string.hp_print_setup),
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(MiuixIcons.Back, null, tint = MiuixTheme.colorScheme.onBackground)
-                    }
-                },
-            )
+            BlurredBar(backdrop) {
+                SmallTopAppBar(
+                    title = stringResource(R.string.hp_print_setup),
+                    color = barColor,
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(MiuixIcons.Back, null, tint = MiuixTheme.colorScheme.onBackground)
+                        }
+                    },
+                )
+            }
         },
         popupHost = { },
         contentWindowInsets = WindowInsets.systemBars.add(WindowInsets.displayCutout).only(WindowInsetsSides.Horizontal),
     ) { innerPadding ->
         Column(
             modifier = Modifier
+                .then(if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier)
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
@@ -221,6 +252,16 @@ private fun PrintSetupMiuix(
                     selectedIndex = PAPER_SIZES.indexOf(state.paperSize).coerceAtLeast(0),
                     onSelectedIndexChange = { viewModel.setPaperSize(PAPER_SIZES[it]) },
                 )
+                if (files.any { it.kind == "IMAGE" }) {
+                    val photoItems = photoSizeLabels()
+                    OverlayDropdownPreference(
+                        title = stringResource(R.string.hp_photo_size),
+                        summary = photoSizeLabel(state.photoSize),
+                        items = photoItems,
+                        selectedIndex = PHOTO_SIZES.indexOf(state.photoSize).coerceAtLeast(0),
+                        onSelectedIndexChange = { viewModel.setPhotoSize(PHOTO_SIZES[it]) },
+                    )
+                }
                 OverlayDropdownPreference(
                     title = stringResource(R.string.hp_duplex),
                     summary = duplexItems.getOrElse(DUPLEX_MODES.indexOf(state.duplex), { duplexItems[0] }),
@@ -429,6 +470,18 @@ private fun PrintSetupMaterial(
                         selectedIndex = PAPER_SIZES.indexOf(state.paperSize).coerceAtLeast(0),
                         onItemSelected = { viewModel.setPaperSize(PAPER_SIZES[it]) },
                     )
+                }
+                if (files.any { it.kind == "IMAGE" }) {
+                    item {
+                        SegmentedDropdownItem(
+                            icon = Icons.Rounded.Description,
+                            title = stringResource(R.string.hp_photo_size),
+                            summary = photoSizeLabel(state.photoSize),
+                            items = photoSizeLabels(),
+                            selectedIndex = PHOTO_SIZES.indexOf(state.photoSize).coerceAtLeast(0),
+                            onItemSelected = { viewModel.setPhotoSize(PHOTO_SIZES[it]) },
+                        )
+                    }
                 }
                 item {
                     SegmentedDropdownItem(

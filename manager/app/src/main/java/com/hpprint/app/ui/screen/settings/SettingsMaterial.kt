@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.DisplaySettings
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.SnackbarHostState
@@ -40,6 +41,7 @@ import com.hpprint.app.ui.component.material.ExpressiveScaffold
 import com.hpprint.app.ui.component.material.SegmentedColumn
 import com.hpprint.app.ui.component.material.SegmentedDropdownItem
 import com.hpprint.app.ui.component.material.SegmentedListItem
+import com.hpprint.app.ui.component.material.SegmentedSwitchItem
 import com.hpprint.app.ui.component.material.SendLogBottomSheet
 import com.hpprint.app.ui.component.material.SnackBarHost
 import com.hpprint.app.ui.component.material.expressiveTopAppBarColors
@@ -108,6 +110,14 @@ fun SettingPagerMaterial(
                             leadingContent = { Icon(Icons.Filled.Palette, stringResource(id = R.string.settings_theme)) },
                             trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null) }
                         )
+                    },
+                    {
+                        SegmentedSwitchItem(
+                            title = stringResource(id = R.string.auto_check_update),
+                            summary = stringResource(id = R.string.auto_check_update_summary),
+                            checked = uiState.checkUpdate,
+                            onCheckedChange = actions.onSetCheckUpdate,
+                        )
                     }
                 )
             )
@@ -120,6 +130,15 @@ fun SettingPagerMaterial(
                             onClick = { showBottomSheet = true },
                             headlineContent = { Text(stringResource(id = R.string.send_log)) },
                             leadingContent = { Icon(Icons.Filled.BugReport, stringResource(id = R.string.send_log)) },
+                            trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null) }
+                        )
+                    },
+                    {
+                        SegmentedListItem(
+                            onClick = actions.onCheckUpdate,
+                            headlineContent = { Text(stringResource(id = R.string.check_update)) },
+                            supportingContent = { Text(stringResource(id = R.string.check_update_summary)) },
+                            leadingContent = { Icon(Icons.Filled.SystemUpdate, stringResource(id = R.string.check_update)) },
                             trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null) }
                         )
                     },

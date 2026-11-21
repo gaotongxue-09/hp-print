@@ -27,6 +27,7 @@ val DUPLEX_MODES = listOf("off", "long", "short", "manual")
 val QUALITY_OPTIONS = listOf(3, 4, 5)      // 草稿 / 标准 / 高质量
 val ORIENTATION_OPTIONS = listOf(3, 4)     // 纵向 / 横向
 val PAGE_RANGE_MODES = listOf("all", "custom")   // 全部页面 / 自定义范围
+val PHOTO_SIZES = listOf("original", "3x5", "4x6", "5x7", "1inch", "small1", "big1", "2inch", "small2", "idcard")
 
 @Immutable
 data class PrintSetupUiState(
@@ -41,6 +42,7 @@ data class PrintSetupUiState(
     val pageRange: String = "all",
     val pageStart: Int = 1,
     val pageEnd: Int = 1,
+    val photoSize: String = "original",
     val isDispatching: Boolean = false,
     val showManualDuplexGuide: Boolean = false,
 )
@@ -77,6 +79,7 @@ class PrintSetupViewModel(
     fun setPageRange(value: String) = _uiState.update { it.copy(pageRange = value) }
     fun setPageStart(value: Int) = _uiState.update { it.copy(pageStart = value.coerceIn(1, 99999)) }
     fun setPageEnd(value: Int) = _uiState.update { it.copy(pageEnd = value.coerceIn(1, 99999)) }
+    fun setPhotoSize(value: String) = _uiState.update { it.copy(photoSize = value) }
 
     private var guideGate: CompletableDeferred<Boolean>? = null
 
@@ -144,6 +147,7 @@ class PrintSetupViewModel(
             pageRange = state.pageRange,
             pageStart = state.pageStart,
             pageEnd = state.pageEnd,
+            photoSize = state.photoSize,
             printerIp = printer.ip,
             printerPort = printer.port,
             printerScheme = printer.scheme,

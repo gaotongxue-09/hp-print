@@ -34,6 +34,10 @@ class ScanViewModel(
         viewModelScope.launch { repo.save(title, imageUri) }
     }
 
+    fun rename(scan: Scan, title: String) {
+        viewModelScope.launch { repo.rename(scan.id, title) }
+    }
+
     fun delete(scan: Scan) {
         viewModelScope.launch { repo.delete(scan.id) }
     }
