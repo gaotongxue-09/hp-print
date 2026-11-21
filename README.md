@@ -96,10 +96,23 @@
 
 ## 📸 界面预览
 
-<img width="270" alt="Screenshot_2026-10-17-13-30-25-540_com hpprint app" src="https://github.com/user-attachments/assets/099bf0ca-956a-47c3-9362-38a44876d0db" />
-<img width="270" alt="Screenshot_2026-10-17-13-30-27-441_com hpprint app" src="https://github.com/user-attachments/assets/2f5805d6-abd0-4993-8200-f6118b8a635f" />
-<img width="270" alt="Screenshot_2026-10-17-13-30-29-171_com hpprint app" src="https://github.com/user-attachments/assets/9b730641-5a30-4d1c-8bdc-dd3c18fe6f7f" />
-<img width="270" alt="Screenshot_2026-10-17-13-30-31-350_com hpprint app" src="https://github.com/user-attachments/assets/5e82cb5e-3468-4bd6-bb5f-b3dde2b8eb64" />
+**主页与打印**
+
+<img width="220" alt="主页" src="screenshots/home.jpg" />
+<img width="220" alt="打印任务" src="screenshots/print-jobs.jpg" />
+<img width="220" alt="打印模板" src="screenshots/print-templates.jpg" />
+<img width="220" alt="纸张模板" src="screenshots/paper-template.jpg" />
+
+**扫描与证件**
+
+<img width="220" alt="文档扫描" src="screenshots/document-scan.jpg" />
+<img width="220" alt="证件打印" src="screenshots/id-print.jpg" />
+<img width="220" alt="身份证复印" src="screenshots/id-card-copy.jpg" />
+<img width="220" alt="证件照排版" src="screenshots/id-photo.jpg" />
+
+**关于**
+
+<img width="220" alt="关于" src="screenshots/about.jpg" />
 
 ---
 
