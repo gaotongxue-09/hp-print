@@ -142,5 +142,6 @@
 ## 📄 文档
 
 - [完整功能清单](docs/功能介绍.md)
+- [安全性设计](docs/安全性设计.md)
 - [更新日志](CHANGELOG.md)
-- [安全说明](SECURITY.md)
+- [安全漏洞上报](SECURITY.md)
