@@ -239,10 +239,10 @@ dependencies {
 
     implementation(libs.appiconloader)
 
-    implementation("androidx.camera:camera-core:1.4.2")
-    implementation("androidx.camera:camera-camera2:1.4.2")
-    implementation("androidx.camera:camera-lifecycle:1.4.2")
-    implementation("androidx.camera:camera-view:1.4.2")
+    implementation("androidx.camera:camera-core:1.7.0")
+    implementation("androidx.camera:camera-camera2:1.7.0")
+    implementation("androidx.camera:camera-lifecycle:1.7.0")
+    implementation("androidx.camera:camera-view:1.7.0")
     implementation("androidx.exifinterface:exifinterface:1.4.1")
     implementation("com.google.mlkit:text-recognition-chinese:16.0.1")
 
